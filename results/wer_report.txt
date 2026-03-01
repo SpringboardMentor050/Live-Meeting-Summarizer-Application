@@ -3,7 +3,7 @@ WER Benchmark Report
 
 Dataset: AMI Meeting Corpus
 Model Used: Whisper Small
-Audio Segment: 30 seconds
+Audio Segment: 60 seconds
 Sample Rate: 16kHz mono
 
 Evaluation Results:
@@ -13,3 +13,4 @@ CER: 0.00%
 Note:
 Reference transcript was generated using aligned model output 
 to validate preprocessing and evaluation pipeline.
+
