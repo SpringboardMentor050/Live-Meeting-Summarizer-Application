@@ -1,0 +1,14 @@
+streamlit
+pyaudio
+sounddevice
+vosk
+openai-whisper
+jiwer
+librosa
+pydub
+beautifulsoup4
+requests
+pyannote.audio
+groq
+python-dotenv
+pandas
