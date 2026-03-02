@@ -21,7 +21,7 @@ Characteristics:
 
 Audio File Used:
 - ES2002a.Headset-0.wav
-- Trimmed 60-second segment
+- Trimmed 30-second segment
 - Resampled to 16kHz mono
 
 ---
@@ -30,7 +30,7 @@ Audio File Used:
 
 Before transcription, the following preprocessing was applied:
 
-- Audio trimming (60-second segment)
+- Audio trimming (30-second segment)
 - Resampling to 16kHz
 - Conversion to mono channel
 - Normalization of text (lowercase, punctuation removal)
