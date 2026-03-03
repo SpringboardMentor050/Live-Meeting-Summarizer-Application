@@ -1,7 +1,7 @@
 # STT Benchmark Report -- AMI ES2002a (Module 1)
 
 > **Dataset**: AMI Meeting Corpus -- Session ES2002a, Headset-0  
-> **Audio**: 5-second trimmed clip (ES2002a_trimmed.wav)  
+> **Audio**: 30-second trimmed clip (ES2002a_trimmed.wav)  
 > **Generated**: 2026-02-27  
 
 ---
@@ -10,8 +10,8 @@
 
 | Model | WER | Latency | Device |
 |---|---|---|---|
-| **Whisper (base)** | **10.00%** | 1.6s | CPU |
-| **Vosk (small-en-us)** | **10.00%** | 1.2s | CPU (streaming) |
+| **Whisper (base)** | **21.43%** | 1.1s | CPU |
+| **Vosk (small-en-us)** | **28.57%** | 2.0s | CPU (streaming) |
 
 **Recommended for real-time pipeline**: Whisper (base)
 
@@ -26,8 +26,8 @@
 | Architecture | Encoder-Decoder Transformer | Kaldi TDNN |
 | Inference mode | Offline batch | Real-time streaming |
 | GPU support | YES | No |
-| WER (this test) | 10.00% | 10.00% |
-| Latency (5-second clip) | 1.6s | 1.2s |
+| WER (this test) | 21.43% | 28.57% |
+| Latency (30-second clip) | 1.1s | 2.0s |
 
 ---
 
@@ -36,7 +36,7 @@
 - **Metric**: Word Error Rate (WER) = (S + D + I) / N
 - **Normalisation**: lowercase, remove punctuation, collapse whitespace
 - **Reference**: AMI HTML transcript; timestamps & silence markers stripped
-- **Audio**: 16 kHz mono WAV, first 5-seconds of ES2002a.Headset-0.wav
+- **Audio**: 16 kHz mono WAV, first 30-second of ES2002a_trimmed.wav
 - **Library**: jiwer
 
 ---
@@ -45,7 +45,7 @@
 
 ### Ground Truth (first 300 chars)
 ```
-im david and im supposed to be an industrial designer
+hi im david and im supposed to be an industrial designer okay great matt
 ```
 
 ### Whisper Output (first 300 chars)
@@ -55,16 +55,16 @@ Hi, I'm David and I'm supposed to be an industrial designer.
 
 ### Vosk Output (first 300 chars)
 ```
-david and i'm supposed to be an industrial designer
+david and i'm supposed to be an industrial designer    matt
 ```
 
 ---
 
 ## 5. Key Observations
 
-- Whisper achieves WER of **10.00%** thanks to large Transformer pre-training.
-- Vosk achieves WER of **10.00%** with streaming-capable inference.
-- Vosk is **1.3x faster** than Whisper on CPU for this 5-second clip.
+- Whisper achieves WER of **21.43%** thanks to large Transformer pre-training.
+- Vosk achieves WER of **28.57%** with streaming-capable inference.
+- Vosk is **0.6x faster** than Whisper on CPU for this 30-second clip.
 - For **real-time** transcription Vosk is preferred (lower latency, streaming mode).
 - Whisper can serve as a **post-meeting correction** pass for higher accuracy.
 
