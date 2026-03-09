@@ -1,5 +1,6 @@
 import warnings
 warnings.filterwarnings("ignore")
+
 import os
 import torch
 import librosa
@@ -14,12 +15,12 @@ pipeline = Pipeline.from_pretrained(
     token=os.getenv("HF_TOKEN")
 )
 
-print("Loading audio...")
+print("Loading full audio...")
 
+# Load full audio
 waveform, sr = librosa.load(AUDIO_FILE, sr=16000, mono=True)
 
-# limit to 60 seconds for faster testing
-waveform = waveform[:60 * sr]
+print(f"Audio duration: {len(waveform)/sr:.2f} seconds")
 
 audio = {
     "waveform": torch.tensor(waveform).unsqueeze(0),
@@ -30,7 +31,18 @@ print("Running diarization...")
 
 diarization = pipeline(audio)
 
+# ensure URI matches reference RTTM
+diarization.speaker_diarization.uri = "ES2002a"
+
 print("\nSpeaker Segments:\n")
 
-for segment, speaker in diarization.speaker_diarization:
-    print(f"{segment.start:.2f}s - {segment.end:.2f}s : {speaker}")
+for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
+    print(f"{turn.start:.2f}s - {turn.end:.2f}s : {speaker}")
+
+# Save predicted RTTM
+output_file = "diarization/predicted.rttm"
+
+with open(output_file, "w") as f:
+    diarization.speaker_diarization.write_rttm(f)
+
+print(f"\nPredicted RTTM saved to {output_file}")
