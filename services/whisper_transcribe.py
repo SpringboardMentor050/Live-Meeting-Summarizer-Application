@@ -1,36 +1,44 @@
 import whisper
 
-AUDIO_FILE = "storage/processed_audio/ES2002a.Array1-01.wav"
-OUTPUT_FILE = "storage/transcripts/whisper_output.txt"
-
-START_TIME = 77
-END_TIME = 300
-
 print("Loading Whisper model...")
 model = whisper.load_model("base")
 
-print("Transcribing audio...")
 
-result = model.transcribe(
-    AUDIO_FILE,
-    language="en",
-    task="transcribe",
-    fp16=False
-)
+def transcribe_audio(audio_file,
+                     start_time=None,
+                     end_time=None,
+                     output_file="storage/transcripts/whisper_output.txt"):
 
-transcript = ""
+    print("\nTranscribing audio...")
 
-# filter segments by time
-for segment in result["segments"]:
+    result = model.transcribe(
+        audio_file,
+        language="en",
+        task="transcribe",
+        fp16=False
+    )
 
-    start = segment["start"]
-    end = segment["end"]
+    transcript = ""
 
-    if start >= START_TIME and end <= END_TIME:
-        transcript += segment["text"] + " "
+    for segment in result["segments"]:
 
-with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-    f.write(transcript.strip())
+        start = segment["start"]
+        end = segment["end"]
 
-print("\nTranscript saved:", OUTPUT_FILE)
-print("\nPreview:\n", transcript[:300])
+        # optional time filtering
+        if start_time is not None and end_time is not None:
+            if start >= start_time and end <= end_time:
+                transcript += segment["text"] + " "
+        else:
+            transcript += segment["text"] + " "
+
+    transcript = transcript.strip()
+
+    # save transcript
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(transcript)
+
+    print("\nTranscript saved:", output_file)
+    print("\nPreview:\n", transcript[:300])
+
+    return transcript
