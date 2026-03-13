@@ -4,15 +4,7 @@ import nltk
 from transformers import pipeline
 from nltk.tokenize import sent_tokenize
 
-# -----------------------------
-# DOWNLOAD NLTK RESOURCES
-# -----------------------------
-
 nltk.download("punkt")
-
-# -----------------------------
-# LOAD MODEL
-# -----------------------------
 
 print("Loading BART summarization model...")
 
@@ -21,24 +13,27 @@ summarizer = pipeline(
     model="facebook/bart-large-cnn"
 )
 
+
 # -----------------------------
 # CLEAN TRANSCRIPT
 # -----------------------------
 
 def clean_transcript(text):
 
-    # remove filler words
     fillers = [" um ", " uh ", " ah ", " you know ", " like "]
+
     for f in fillers:
         text = text.replace(f, " ")
 
     # remove repeated words
     text = re.sub(r'\b(\w+)( \1\b)+', r'\1', text)
 
-    # remove repeated punctuation
-    text = re.sub(r'(\.){2,}', '.', text)
+    # remove repeated sentences
+    sentences = sent_tokenize(text)
+    unique_sentences = list(dict.fromkeys(sentences))
 
-    # remove extra spaces
+    text = " ".join(unique_sentences)
+
     text = re.sub(r'\s+', ' ', text)
 
     return text.strip()
@@ -58,11 +53,9 @@ def filter_transcript(text):
 
         s = s.strip()
 
-        # remove very short sentences
         if len(s.split()) < 6:
             continue
 
-        # remove conversational fillers
         if re.search(r"\b(yeah|okay|right|hmm)\b", s.lower()):
             continue
 
@@ -72,80 +65,65 @@ def filter_transcript(text):
 
 
 # -----------------------------
-# LOAD TRANSCRIPT
+# MAIN SUMMARIZATION FUNCTION
 # -----------------------------
 
-TRANSCRIPT_FILE = "storage/transcripts/whisper_output.txt"
+def summarize_text(transcript):
 
-with open(TRANSCRIPT_FILE, "r", encoding="utf-8") as f:
-    transcript = f.read()
+    print("\nTranscript received for summarization")
 
-print("\nTranscript Loaded.")
+    transcript = clean_transcript(transcript)
 
-# cleaning
-transcript = clean_transcript(transcript)
+    transcript = filter_transcript(transcript)
 
-# filtering
-transcript = filter_transcript(transcript)
+    sentences = sent_tokenize(transcript)
 
-# -----------------------------
-# SENTENCE CHUNKING
-# -----------------------------
+    chunks = []
+    current_chunk = ""
 
-sentences = sent_tokenize(transcript)
+    for sentence in sentences:
 
-chunks = []
-current_chunk = ""
+        if len(current_chunk) + len(sentence) < 900:
+            current_chunk += sentence + " "
+        else:
+            chunks.append(current_chunk)
+            current_chunk = sentence + " "
 
-for sentence in sentences:
-
-    if len(current_chunk) + len(sentence) < 900:
-        current_chunk += sentence + " "
-    else:
+    if current_chunk:
         chunks.append(current_chunk)
-        current_chunk = sentence + " "
 
-if current_chunk:
-    chunks.append(current_chunk)
+    print(f"\nTotal chunks: {len(chunks)}")
 
-print(f"\nTotal chunks: {len(chunks)}")
+    summary_parts = []
 
-# -----------------------------
-# SUMMARIZE CHUNKS
-# -----------------------------
+    for chunk in chunks:
 
-summary_parts = []
+        summary = summarizer(
+            chunk,
+            max_length=110,
+            min_length=40,
+            do_sample=False
+        )
 
-for chunk in chunks:
+        summary_parts.append(summary[0]["summary_text"])
 
-    summary = summarizer(
-        chunk,
-        max_length=110,
-        min_length=40,
+    combined_summary = " ".join(summary_parts)
+
+    print("\nRunning final summarization...")
+
+    final_summary = summarizer(
+        combined_summary,
+        max_length=180,
+        min_length=60,
         do_sample=False
-    )
+    )[0]["summary_text"]
 
-    summary_parts.append(summary[0]["summary_text"])
-
-
-# -----------------------------
-# FINAL SUMMARY
-# -----------------------------
-
-combined_summary = " ".join(summary_parts)
-
-combined_summary = clean_transcript(combined_summary)
-
-# -----------------------------
-# STRUCTURED MEETING SUMMARY
-# -----------------------------
-
-structured_summary = f"""
+    structured_summary = f"""
 Meeting Summary
 ---------------
 
 Key Discussion Points:
-{combined_summary}
+{final_summary}
 
 Action Items:
 • Review the design stages discussed in the meeting
@@ -155,17 +133,16 @@ Decisions:
 • Proceed with the proposed design framework
 """
 
-print("\n===== AMI MEETING SUMMARY =====\n")
-print(structured_summary)
+    print("\n===== MEETING SUMMARY =====\n")
+    print(structured_summary)
 
-# -----------------------------
-# SAVE SUMMARY
-# -----------------------------
+    os.makedirs("storage/summaries", exist_ok=True)
 
+    output_file = "storage/summaries/final_summary.txt"
 
-os.makedirs("storage/summaries", exist_ok=True)
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(structured_summary)
 
-with open("storage/summaries/ami_summary.txt", "w", encoding="utf-8") as f:
-    f.write(structured_summary)
+    print("\nSummary saved:", output_file)
 
-print("\nSummary saved to storage/summaries/ami_summary.txt")
+    return structured_summary

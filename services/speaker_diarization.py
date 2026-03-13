@@ -6,43 +6,64 @@ import torch
 import librosa
 from pyannote.audio import Pipeline
 
-AUDIO_FILE = "storage/processed_audio/ES2002a.Array1-01.wav"
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-print("Loading diarization model...")
 
-pipeline = Pipeline.from_pretrained(
-    "pyannote/speaker-diarization-3.1",
-    token=os.getenv("HF_TOKEN")
-)
+def run_diarization(audio_file, whisper_segments):
 
-print("Loading full audio...")
+    print("\nLoading audio for diarization...")
 
-# Load full audio
-waveform, sr = librosa.load(AUDIO_FILE, sr=16000, mono=True)
+    waveform, sr = librosa.load(audio_file, sr=16000, mono=True)
 
-print(f"Audio duration: {len(waveform)/sr:.2f} seconds")
+    print(f"Audio duration: {len(waveform)/sr:.2f} seconds")
 
-audio = {
-    "waveform": torch.tensor(waveform).unsqueeze(0),
-    "sample_rate": sr
-}
+    audio = {
+        "waveform": torch.tensor(waveform).unsqueeze(0),
+        "sample_rate": sr
+    }
 
-print("Running diarization...")
+    print("\nLoading diarization model...")
 
-diarization = pipeline(audio)
+    pipeline = Pipeline.from_pretrained(
+        "pyannote/speaker-diarization-3.1",
+        token=HF_TOKEN
+    )
 
-# ensure URI matches reference RTTM
-diarization.speaker_diarization.uri = "ES2002a"
+    print("\nRunning diarization...")
 
-print("\nSpeaker Segments:\n")
+    diarization = pipeline(audio)
 
-for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
-    print(f"{turn.start:.2f}s - {turn.end:.2f}s : {speaker}")
+    diarized_transcript = ""
 
-# Save predicted RTTM
-output_file = "diarization/predicted.rttm"
+    print("\nAligning speakers with transcript...\n")
 
-with open(output_file, "w") as f:
-    diarization.speaker_diarization.write_rttm(f)
+    for segment in whisper_segments:
 
-print(f"\nPredicted RTTM saved to {output_file}")
+        start = segment["start"]
+        end = segment["end"]
+        text = segment["text"].strip()
+
+        # skip noise
+        if len(text.split()) < 3:
+            continue
+
+        speaker_label = "UNKNOWN"
+
+        for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
+
+            if turn.start <= start <= turn.end:
+                speaker_label = speaker
+                break
+
+        diarized_transcript += f"{speaker_label}: {text}\n"
+
+    os.makedirs("storage/transcripts", exist_ok=True)
+
+    output_file = "storage/transcripts/diarized_transcript.txt"
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(diarized_transcript)
+
+    print("\nDiarized transcript saved:", output_file)
+
+    return diarized_transcript

@@ -9,13 +9,13 @@ def run_pipeline(audio_file):
 
     # Step 1 — Speech to Text
     print("Running Speech-to-Text...")
-    transcript = transcribe_audio(audio_file)
+    transcript, segments = transcribe_audio(audio_file)
 
     print("\nTranscript generated.")
 
     # Step 2 — Speaker Diarization
     print("\nRunning Speaker Diarization...")
-    diarized_text = run_diarization(audio_file, transcript)
+    diarized_text = run_diarization(audio_file, segments)
 
     print("\nDiarization completed.")
 
@@ -25,7 +25,4 @@ def run_pipeline(audio_file):
 
     print("\nSummarization completed.")
 
-    return {
-        "transcript": diarized_text,
-        "summary": summary
-    }
+    return diarized_text, summary

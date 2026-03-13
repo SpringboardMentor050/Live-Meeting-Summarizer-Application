@@ -1,15 +1,14 @@
 import whisper
+import os
 
-print("Loading Whisper model...")
-model = whisper.load_model("base")
+START_TIME = 77
+END_TIME = 300
 
+def transcribe_audio(audio_file):
 
-def transcribe_audio(audio_file,
-                     start_time=None,
-                     end_time=None,
-                     output_file="storage/transcripts/whisper_output.txt"):
+    print("Transcribing audio...")
 
-    print("\nTranscribing audio...")
+    model = whisper.load_model("base")
 
     result = model.transcribe(
         audio_file,
@@ -19,26 +18,36 @@ def transcribe_audio(audio_file,
     )
 
     transcript = ""
+    filtered_segments = []
 
     for segment in result["segments"]:
 
         start = segment["start"]
         end = segment["end"]
+        text = segment["text"].strip()
 
-        # optional time filtering
-        if start_time is not None and end_time is not None:
-            if start >= start_time and end <= end_time:
-                transcript += segment["text"] + " "
-        else:
-            transcript += segment["text"] + " "
+        # keep only selected portion of meeting
+        if start >= START_TIME and end <= END_TIME:
+
+            transcript += text + " "
+
+            filtered_segments.append({
+                "start": start,
+                "end": end,
+                "text": text
+            })
 
     transcript = transcript.strip()
 
-    # save transcript
+    os.makedirs("storage/transcripts", exist_ok=True)
+
+    output_file = "storage/transcripts/whisper_output.txt"
+
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(transcript)
 
     print("\nTranscript saved:", output_file)
     print("\nPreview:\n", transcript[:300])
 
-    return transcript
+    # return BOTH transcript and segments
+    return transcript, filtered_segments
