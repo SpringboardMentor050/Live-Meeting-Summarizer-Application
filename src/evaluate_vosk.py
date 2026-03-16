@@ -16,7 +16,7 @@ def clean_text(text):
 # Load Vosk model
 model = Model("models/vosk-model-small-en-us-0.15")
 
-wf = wave.open("data/sample_3min.wav", "rb")
+wf = wave.open("data/sample_fixed.wav", "rb")
 rec = KaldiRecognizer(model, wf.getframerate())
 
 predicted_text = ""
@@ -29,6 +29,12 @@ while True:
         result = json.loads(rec.Result())
         predicted_text += result.get("text", "") + " "
 
+from pydub import AudioSegment
+
+audio = AudioSegment.from_file("data/sample_3min.wav")
+audio = audio.set_channels(1)
+audio = audio.set_frame_rate(16000)
+audio.export("data/sample_fixed.wav", format="wav")
 # Final chunk
 result = json.loads(rec.FinalResult())
 predicted_text += result.get("text", "")
