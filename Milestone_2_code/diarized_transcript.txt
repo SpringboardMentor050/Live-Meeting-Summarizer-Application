@@ -1,0 +1,10 @@
+
+Speaker 1: Well this is the kickoff meeting for our project.
+
+Speaker 2: I'm Laura and I'm the project manager.
+
+Speaker 3: I'm Andrew and I'm a marketing expert.
+
+Speaker 4: I'm Greg and I'm responsible for the user interface.
+
+Speaker 1: We are designing a new remote control that should be original and user friendly.
