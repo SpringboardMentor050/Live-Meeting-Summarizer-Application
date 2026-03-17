@@ -41,19 +41,21 @@ def run_diarization(audio_file, whisper_segments):
 
         start = segment["start"]
         end = segment["end"]
-        text = segment["text"].strip()
-
-        # skip noise
-        if len(text.split()) < 3:
-            continue
+        text = segment["text"]
 
         speaker_label = "UNKNOWN"
+        best_overlap = 0
 
         for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
 
-            if turn.start <= start <= turn.end:
+            overlap_start = max(start, turn.start)
+            overlap_end = min(end, turn.end)
+
+            overlap = max(0, overlap_end - overlap_start)
+
+            if overlap > best_overlap:
+                best_overlap = overlap
                 speaker_label = speaker
-                break
 
         diarized_transcript += f"{speaker_label}: {text}\n"
 

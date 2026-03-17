@@ -3,11 +3,11 @@ Meeting Summary
 ---------------
 
 Key Discussion Points:
-"Designing Your Own Control" is a new series of webisodes. This week's episode features a group of marketing experts. "Design Your Own control" premieres tonight at 10pm ET on CNN. The first episode of the new series. of The Voice begins tonight at 9pm on BBC1.
+Designers are working on a new remote control. There are three different stages to the design. At this point, you get to try out the whiteboard over there.
 
 Action Items:
-• Review the design stages discussed in the meeting
-• Continue refining the design concepts
+• Review the proposed design ideas
+• Continue refining the system design
 
 Decisions:
-• Proceed with the proposed design framework
+• Proceed with development of the control system concept

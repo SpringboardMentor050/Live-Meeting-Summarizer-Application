@@ -4,11 +4,13 @@ import os
 START_TIME = 77
 END_TIME = 300
 
+
 def transcribe_audio(audio_file):
 
     print("Transcribing audio...")
 
-    model = whisper.load_model("base")
+    # better accuracy
+    model = whisper.load_model("medium")
 
     result = model.transcribe(
         audio_file,
@@ -18,7 +20,7 @@ def transcribe_audio(audio_file):
     )
 
     transcript = ""
-    filtered_segments = []
+    segments = []
 
     for segment in result["segments"]:
 
@@ -26,12 +28,15 @@ def transcribe_audio(audio_file):
         end = segment["end"]
         text = segment["text"].strip()
 
-        # keep only selected portion of meeting
         if start >= START_TIME and end <= END_TIME:
+
+            # remove noise segments
+            if len(text.split()) < 2:
+                continue
 
             transcript += text + " "
 
-            filtered_segments.append({
+            segments.append({
                 "start": start,
                 "end": end,
                 "text": text
@@ -49,5 +54,4 @@ def transcribe_audio(audio_file):
     print("\nTranscript saved:", output_file)
     print("\nPreview:\n", transcript[:300])
 
-    # return BOTH transcript and segments
-    return transcript, filtered_segments
+    return transcript, segments

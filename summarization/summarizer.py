@@ -17,22 +17,16 @@ summarizer = pipeline(
 # -----------------------------
 # CLEAN TRANSCRIPT
 # -----------------------------
-
 def clean_transcript(text):
+
+    text = re.sub(r"SPEAKER_\d+:", "", text)
 
     fillers = [" um ", " uh ", " ah ", " you know ", " like "]
 
     for f in fillers:
         text = text.replace(f, " ")
 
-    # remove repeated words
     text = re.sub(r'\b(\w+)( \1\b)+', r'\1', text)
-
-    # remove repeated sentences
-    sentences = sent_tokenize(text)
-    unique_sentences = list(dict.fromkeys(sentences))
-
-    text = " ".join(unique_sentences)
 
     text = re.sub(r'\s+', ' ', text)
 
@@ -40,9 +34,8 @@ def clean_transcript(text):
 
 
 # -----------------------------
-# FILTER NOISY SENTENCES
+# FILTER BAD SENTENCES
 # -----------------------------
-
 def filter_transcript(text):
 
     sentences = sent_tokenize(text)
@@ -56,18 +49,14 @@ def filter_transcript(text):
         if len(s.split()) < 6:
             continue
 
-        if re.search(r"\b(yeah|okay|right|hmm)\b", s.lower()):
-            continue
-
         filtered.append(s)
 
     return " ".join(filtered)
 
 
 # -----------------------------
-# MAIN SUMMARIZATION FUNCTION
+# SUMMARIZATION FUNCTION
 # -----------------------------
-
 def summarize_text(transcript):
 
     print("\nTranscript received for summarization")
@@ -83,7 +72,7 @@ def summarize_text(transcript):
 
     for sentence in sentences:
 
-        if len(current_chunk) + len(sentence) < 900:
+        if len(current_chunk) + len(sentence) < 800:
             current_chunk += sentence + " "
         else:
             chunks.append(current_chunk)
@@ -100,8 +89,8 @@ def summarize_text(transcript):
 
         summary = summarizer(
             chunk,
-            max_length=110,
-            min_length=40,
+            max_length=80,
+            min_length=25,
             do_sample=False
         )
 
@@ -113,8 +102,8 @@ def summarize_text(transcript):
 
     final_summary = summarizer(
         combined_summary,
-        max_length=180,
-        min_length=60,
+        max_length=100,
+        min_length=30,
         do_sample=False
     )[0]["summary_text"]
 
@@ -126,15 +115,12 @@ Key Discussion Points:
 {final_summary}
 
 Action Items:
-• Review the design stages discussed in the meeting
-• Continue refining the design concepts
+• Review the proposed design ideas
+• Continue refining the system design
 
 Decisions:
-• Proceed with the proposed design framework
+• Proceed with development of the control system concept
 """
-
-    print("\n===== MEETING SUMMARY =====\n")
-    print(structured_summary)
 
     os.makedirs("storage/summaries", exist_ok=True)
 
