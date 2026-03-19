@@ -12,3 +12,4 @@ pyannote.audio
 groq
 python-dotenv
 pandas
+rouge-score

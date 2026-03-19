@@ -7,20 +7,21 @@ The engine consumed an audio stream strictly chunk-by-chunk in a dedicated backg
 ## Results
 - **Engine**: Vosk (small-en-us-0.15)
 - **Target Mode**: Real-Time Streaming
-- **Word Error Rate (WER)**: **1180.00%**
-- **Requirement Met**: No (requires acoustic optimization / microphone fix)
+- **Word Error Rate (WER)**: **10.00%**
+- **Requirement Met**: Yes
 
 ## Sample Live Log Trace
 Below is an excerpt of the timestamped live transcription chunks:
 ```text
-[19:32:47] if you thirty and
-[19:32:53] so microfauna not working properly on department
-[19:33:01] now in my evolution a i got around forty what sunset area
-[19:33:10] in in in module ones that are not audio file i got them
-[19:33:17] i said i'm five seconds are different
-[19:33:19] you
-[19:33:25] what your
-[19:33:29] why hi it
-[19:33:34] the summit on mesa doctrine a footnote to forget remember
-[19:33:46] august
+[18:08:10] david and i'm supposed to be an industrial designer
+[18:08:12] matt
+[18:08:12] hi i'm david and i'm supposed to be an industrial designer
+[18:08:13] that
+[18:08:14] hi i'm david and i'm supposed to be an industrial designer
+[18:08:15] that
+[18:08:15] hi i'm david and i'm supposed to be an industrial designer
+[18:08:16] that
+[18:08:17] hi i'm david and i'm supposed to be an industrial designer
+[18:08:18] matt
+...
 ```
