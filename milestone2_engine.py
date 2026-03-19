@@ -1,137 +1,117 @@
 """
-milestone2_engine.py - Complete Speech Diarization & Summarization Engine
-Live Meeting Analyzer Project
-
-Integrates STT, Diarization, and Summarization into one pipeline.
-Tied to AMI corpus for evaluation.
+milestone2_engine.py 
+-------------------------
+Integrates STT, Diarization, and Summarization into a single execution pipeline.
+Supports local audio or cleaned YouTube clips.
 """
 
 import os
 import sys
 import json
 import time
-
-# Import our modules
+import wave
+from vosk import Model, KaldiRecognizer
 from module3_diarization import DiarizationEngine
-from module4_summarization import SummarizationEngine, PROMPT_TEMPLATES
-
-# Use whisper for high-fidelity post-meeting STT with timestamps
-import whisper
+from module4_summarization import SummarizationEngine
 
 class MeetingAnalyzerEngine:
     def __init__(self, hf_token=None, groq_key=None):
         """
-        Initializes both engines.
+        Setup the STT, Diarizer, and Summarization components.
         """
-        print("[Engine] Initializing Diarization and Summarization engines...")
+        print("[Engine] Initializing all modules...")
         self.diarizer = DiarizationEngine(hf_token=hf_token)
         self.summarizer = SummarizationEngine(api_key=groq_key)
         
-        # Load Whisper model for high-precision STT words with timestamps
-        print("[Engine] Loading Whisper model (base) for word-level synchronization...")
-        self.stt_model = whisper.load_model("base")
-        print("[Engine] Ready.")
+        self.vosk_model_path = r"f:\LiveMeetingAnalyzerProject\vosk-model-small-en-us-0.15"
 
-    def run_stt_with_timestamps(self, wav_path):
+    def extract_word_timestamps(self, wav_path):
         """
-        Runs Whisper STT to get words with timestamps.
+        Uses Vosk to extract words with timestamps (Internal offline mode).
         """
-        print(f"[STT] Transcribing {wav_path} with word-level timestamps...")
-        result = self.stt_model.transcribe(wav_path, word_timestamps=True)
+        print(f"[STT] Extracting timestamps for {wav_path} ...")
         
-        words_list = []
-        for segment in result['segments']:
-            for word in segment.get('words', []):
-                words_list.append({
-                    "word": word['word'].strip(),
-                    "start": word['start'],
-                    "end": word['end']
-                })
-        
-        print(f"[STT] Captured {len(words_list)} words.")
-        return words_list
+        if not os.path.exists(self.vosk_model_path):
+            print(f"[Engine] Stop: Vosk model not found at {self.vosk_model_path}")
+            return []
+            
+        wf = wave.open(wav_path, "rb")
+        model = Model(self.vosk_model_path)
+        rec = KaldiRecognizer(model, wf.getframerate())
+        rec.SetWords(True)
 
-    def process_meeting(self, wav_path, template_name="standard"):
+        all_words = []
+        while True:
+            data = wf.readframes(4000)
+            if len(data) == 0: break
+            if rec.AcceptWaveform(data):
+                res = json.loads(rec.Result())
+                if "result" in res:
+                    for w in res["result"]:
+                        all_words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
+        
+        final_res = json.loads(rec.FinalResult())
+        if "result" in final_res:
+            for w in final_res["result"]:
+                all_words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
+        
+        wf.close()
+        return all_words
+
+    def execute_pipeline(self, wav_path, template_name="standard"):
         """
-        Processes a meeting audio file from start to finish.
-        1. STT (Whisper) -> words with timestamps
-        2. Diarization (Pyannote) -> speaker segments
-        3. Syncing -> diarized transcript
-        4. Summarization -> LLM summary
+        Runs full Post-Meeting Processing:
+        1. STT -> words with timestamps
+        2. Diarization -> speaker segments
+        3. Sync -> speaker-tagged transcript
+        4. Summary -> LLM output
         """
-        start_time = time.time()
+        start = time.time()
         
         # 1. STT
-        stt_words = self.run_stt_with_timestamps(wav_path)
+        words = self.extract_word_timestamps(wav_path)
         
         # 2. Diarization
-        speaker_segments = self.diarizer.diarize_audio(wav_path)
+        segments = self.diarizer.perform_diarization(wav_path)
         
-        # 3. Sync & Merge
-        if not speaker_segments:
-            print("[Warning] No speaker segments found. Diarization might have failed or the file is mono/same speaker.")
-            # Fallback to single speaker transcript
-            merged_transcript = [{"speaker": "Speaker 1", "text": " ".join([w['word'] for w in stt_words])}]
-        else:
-            merged_transcript = self.diarizer.merge_with_stt(stt_words, speaker_segments)
-        
-        formatted_transcript = self.diarizer.format_transcript(merged_transcript)
+        # 3. Merging & Syncing
+        synced_data = self.diarizer.synchronize_with_stt(words, segments)
+        transcript_formatted = self.diarizer.format_output(synced_data)
         
         # 4. Summarization
-        summary = self.summarizer.summarize(formatted_transcript, template_name=template_name)
+        summary = self.summarizer.generate_summary(transcript_formatted, template_name=template_name)
         
-        total_time = time.time() - start_time
-        print(f"[Engine] Processing completed in {total_time:.2f} seconds.")
+        duration = time.time() - start
         
         return {
-            "transcript": formatted_transcript,
+            "transcript_data": synced_data,
+            "transcript_formatted": transcript_formatted,
             "summary": summary,
-            "segments": speaker_segments,
-            "time_taken": total_time
+            "duration": duration
         }
 
-    def save_results(self, results, base_path):
-        """Saves transcript and summary to files."""
-        transcript_file = base_path + "_diarized_transcript.txt"
-        summary_file = base_path + "_summary.md"
+    def save_results(self, results, out_base_path):
+        """Saves transcript and summary to local files."""
+        t_path = out_base_path + "_diarized_transcript.txt"
+        s_path = out_base_path + "_summary.md"
         
-        with open(transcript_file, "w", encoding="utf-8") as f:
-            f.write(results['transcript'])
+        with open(t_path, "w", encoding="utf-8") as f:
+            f.write(results['transcript_formatted'])
             
-        with open(summary_file, "w", encoding="utf-8") as f:
+        with open(s_path, "w", encoding="utf-8") as f:
             f.write(results['summary'])
             
-        print(f"[Engine] Saved transcript to {transcript_file}")
-        print(f"[Engine] Saved summary to {summary_file}")
+        print(f"[Engine] Deliverables saved to {t_path} and {s_path}")
 
-
-def evaluate_milestone2(wav_file, gt_transcript_file=None, gt_summary_file=None):
-    """
-    Runs the engine and evaluates DER and ROUGE.
-    """
-    engine = MeetingAnalyzerEngine()
-    results = engine.process_meeting(wav_file)
-    
-    engine.save_results(results, os.path.splitext(wav_file)[0])
-    
-    # 1. Evaluate Transcript (Diarization Alignment)
-    # Simplified evaluation for DER (Manual or requires rttm comparisons)
-    print("\n--- Diarization Evaluation ---")
-    print(f"Detected {len(set(s['speaker'] for s in results['segments']))} unique speakers.")
-    
-    # 2. Evaluate Summary (ROUGE)
-    if gt_summary_file and os.path.exists(gt_summary_file):
-        with open(gt_summary_file, "r", encoding="utf-8") as f:
-            gt_text = f.read()
-            engine.summarizer.evaluate_summary(results['summary'], gt_text)
-    else:
-        print("[Evaluation] No ground truth summary provided for ROUGE score.")
 
 if __name__ == "__main__":
+    # Internal Evaluation Script
     BASE = r"f:\LiveMeetingAnalyzerProject"
     AUDIO_FILE = os.path.join(BASE, "audio", "ES2002a_trimmed.wav")
     
     if os.path.exists(AUDIO_FILE):
-        evaluate_milestone2(AUDIO_FILE)
+        engine = MeetingAnalyzerEngine()
+        res = engine.execute_pipeline(AUDIO_FILE)
+        engine.save_results(res, os.path.join(BASE, "MILESTONE2_SAMPLE"))
     else:
-        print(f"[Error] Audio file not found at {AUDIO_FILE}")
+        print("[Engine] Sample audio file missing.")

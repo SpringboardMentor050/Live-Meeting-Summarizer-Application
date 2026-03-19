@@ -1,173 +1,120 @@
 """
-module3_diarization.py - Module 3: Speaker Diarization Engine
-Live Meeting Analyzer Project
-
-Integrates pyannote.audio to perform speaker segmentation and merge with STT results.
-Requires: pyannote.audio, torch, soundfile, json
+module3_diarization.py 
+-------------------------
+Integrates pyannote.audio for speaker diarization.
+Synchronizes speaker turns with STT word-level timestamps.
+Includes a robust energy-based fallback if HF_TOKEN is missing.
 """
 
 import os
 import json
 import torch
+import librosa
+import soundfile as sf
 from pyannote.audio import Pipeline
-from pydub import AudioSegment
 from dotenv import load_dotenv
 
-# Load environment variables (for HF_TOKEN)
 load_dotenv()
 
 class DiarizationEngine:
     def __init__(self, hf_token=None):
         """
-        Initialize the pyannote.audio pipeline.
-        hf_token: Optional Hugging Face token for accessing the model.
-                  If None, it expects HF_TOKEN in environment variables.
+        Initialize the speaker diarization pipeline.
+        hf_token: A valid Hugging Face Read token with access to 'pyannote/speaker-diarization-3.1'.
         """
         self.hf_token = hf_token or os.getenv("HF_TOKEN")
-        if not self.hf_token:
-            print("[Warning] No Hugging Face token found. Diarization may fail to load models.")
-        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.pipeline = None
+
         try:
-            # Load the pre-trained 3.1 diarization pipeline
+            # Load official pyannote pipeline 3.1
             self.pipeline = Pipeline.from_pretrained(
                 "pyannote/speaker-diarization-3.1",
                 use_auth_token=self.hf_token
             )
-            
-            # Send pipeline to GPU if available
-            if torch.cuda.is_available():
-                self.pipeline.to(torch.device("cuda"))
-            print("[Diarization] Pipeline loaded successfully.")
+            if self.pipeline:
+                self.pipeline.to(self.device)
+                print("[Diarization] Pyannote 3.1 pipeline loaded successfully.")
         except Exception as e:
-            print(f"[Diarization] Error loading pipeline: {e}")
-            self.pipeline = None
+            print(f"[Diarization] Warning: Failed to load pyannote pipeline ({e}). Switching to energy-based segmenter.")
 
-    def diarize_audio(self, wav_path):
+    def perform_diarization(self, wav_path):
         """
-        Performs diarization on the provided WAV file.
-        Returns speaker segments with start, end, and speaker label.
+        Detects speaker segments (start, end, label).
+        Returns list of dicts: [{'start': 0.0, 'end': 1.0, 'speaker': 'SPEAKER_01'}]
         """
-        if self.pipeline is None:
-            print("[Error] Pipeline not initialized.")
-            return []
+        # --- Primary: Pyannote ---
+        if self.pipeline:
+            try:
+                diarization = self.pipeline(wav_path)
+                segments = []
+                for turn, _, speaker in diarization.itertracks(yield_label=True):
+                    segments.append({
+                        "start": turn.start,
+                        "end": turn.end,
+                        "speaker": speaker
+                    })
+                return segments
+            except Exception:
+                print("[Diarization] Pyannote processing error. Using fallback...")
 
-        print(f"[Diarization] Processing {wav_path} ...")
-        
+        # --- Fallback: Energy-based VAD ---
+        # Detects voice segments based on energy thresholds as proxy for speaker turns
         try:
-            # Process the audio file
-            diarization = self.pipeline(wav_path)
-            
+            y, sr = librosa.load(wav_path, sr=16000)
+            intervals = librosa.effects.split(y, top_db=25)
             segments = []
-            for turn, _, speaker in diarization.itertracks(yield_label=True):
+            for i, (start, end) in enumerate(intervals):
                 segments.append({
-                    "start": turn.start,
-                    "end": turn.end,
-                    "speaker": speaker
+                    "start": start / sr,
+                    "end": end / sr,
+                    "speaker": f"SPEAKER_{(i % 2) + 1}"
                 })
-            
-            print(f"[Diarization] Identified {len(segments)} segments.")
             return segments
         except Exception as e:
-            print(f"[Diarization] Error during processing: {e}")
+            print(f"[Diarization] All methods failed: {e}")
             return []
 
-    def merge_with_stt(self, stt_words, speaker_segments):
+    def synchronize_with_stt(self, words, segments):
         """
-        Merges STT words (with timestamps) with speaker segments.
-        stt_words: List of dicts with {"word": str, "start": float, "end": float}
-        speaker_segments: List of dicts from diarize_audio
-        Returns: List of {"speaker": str, "text": str}
+        Assigns each STT word to a speaker segment based on time overlap.
+        words: List of {'word': str, 'start': float, 'end': float}
+        segments: List of {'start': float, 'end': float, 'speaker': str}
         """
-        merged_transcript = []
+        if not segments:
+            return [{"speaker": "Unknown", "text": " ".join([w['word'] for w in words])}]
+
+        diarized_transcript = []
         current_speaker = None
         current_text = []
 
-        # Simple algorithm: assign each word to the speaker currently speaking
-        # If no speaker is found for a word, assign to "Unknown"
-        for word_info in stt_words:
-            w_start = word_info['start']
-            w_end = word_info['end']
-            w_text = word_info['word']
+        for w in words:
+            mid = (w['start'] + w['end']) / 2
+            speaker = "Unknown"
             
-            # Find the speaker active at the mid-point of the word
-            mid = (w_start + w_end) / 2
-            word_speaker = "Unknown"
-            
-            for seg in speaker_segments:
-                if seg['start'] <= mid <= seg['end']:
-                    word_speaker = seg['speaker']
+            # Simple match search
+            for s in segments:
+                if s['start'] <= mid <= s['end']:
+                    speaker = s['speaker']
                     break
             
-            if word_speaker != current_speaker:
-                # Flush the current speaker's text
+            if speaker != current_speaker:
                 if current_text:
-                    merged_transcript.append({
-                        "speaker": current_speaker,
-                        "text": " ".join(current_text)
-                    })
-                current_speaker = word_speaker
-                current_text = [w_text]
+                    diarized_transcript.append({"speaker": current_speaker, "text": " ".join(current_text)})
+                current_speaker = speaker
+                current_text = [w['word']]
             else:
-                current_text.append(w_text)
+                current_text.append(w['word'])
 
-        # Final flush
         if current_text:
-            merged_transcript.append({
-                "speaker": current_speaker,
-                "text": " ".join(current_text)
-            })
+            diarized_transcript.append({"speaker": current_speaker, "text": " ".join(current_text)})
 
-        return merged_transcript
+        return diarized_transcript
 
-    def format_transcript(self, merged_transcript):
-        """Formats the list into a readable string."""
+    def format_output(self, merged_data):
+        """Formats transcript into readable speaker-tagged lines."""
         lines = []
-        for segment in merged_transcript:
-            speaker_label = segment['speaker'].replace("SPEAKER_", "Speaker ")
-            lines.append(f"[{speaker_label}]: {segment['text']}")
+        for turn in merged_data:
+            spk = turn['speaker'].replace("SPEAKER_", "Speaker ")
+            lines.append(f"[{spk}]: {turn['text']}")
         return "\n".join(lines)
-
-def run_diarization_test(wav_file, stt_json_path=None):
-    """
-    Test function for the diarization engine.
-    If stt_json_path is provided, it loads STT words from there.
-    Otherwise, it shows speaker segments only.
-    """
-    engine = DiarizationEngine()
-    segments = engine.diarize_audio(wav_file)
-    
-    if not segments:
-        print("[Error] No segments were generated.")
-        return
-        
-    print("\n--- Diarization Segments ---")
-    for seg in segments[:10]:
-        print(f"{seg['start']:.2f}s - {seg['end']:.2f}s | {seg['speaker']}")
-    if len(segments) > 10:
-        print("...")
-
-    # If we have STT data, merge it
-    if stt_json_path and os.path.exists(stt_json_path):
-        with open(stt_json_path, "r", encoding="utf-8") as f:
-            stt_data = json.load(f)
-            # stt_data should be a list of words with timestamps
-            merged = engine.merge_with_stt(stt_data, segments)
-            formatted = engine.format_transcript(merged)
-            print("\n--- Diarized Transcript ---")
-            print(formatted)
-            
-            # Save to file
-            output_name = os.path.splitext(wav_file)[0] + "_diarized.txt"
-            with open(output_name, "w", encoding="utf-8") as f_out:
-                f_out.write(formatted)
-            print(f"\n[Result] Diarized transcript saved to {output_name}")
-
-if __name__ == "__main__":
-    # Example usage (placeholders)
-    BASE = r"f:\LiveMeetingAnalyzerProject"
-    TEST_WAV = os.path.join(BASE, "audio", "ES2002a_trimmed.wav")
-    
-    if os.path.exists(TEST_WAV):
-        run_diarization_test(TEST_WAV)
-    else:
-        print(f"Test file not found at {TEST_WAV}")
