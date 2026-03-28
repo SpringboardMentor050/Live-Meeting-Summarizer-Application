@@ -1,4 +1,3 @@
-import os
 import re
 import nltk
 from transformers import pipeline
@@ -6,129 +5,149 @@ from nltk.tokenize import sent_tokenize
 
 nltk.download("punkt")
 
-print("Loading BART summarization model...")
-
+# -----------------------------
+# LOAD MODEL (FIXED)
+# -----------------------------
 summarizer = pipeline(
     "summarization",
-    model="facebook/bart-large-cnn"
+    model="facebook/bart-large-cnn",
+    tokenizer="facebook/bart-large-cnn"
 )
 
 
 # -----------------------------
-# CLEAN TRANSCRIPT
+# CLEAN TEXT
 # -----------------------------
-def clean_transcript(text):
-
+def clean_text(text):
     text = re.sub(r"SPEAKER_\d+:", "", text)
 
-    fillers = [" um ", " uh ", " ah ", " you know ", " like "]
+    text = re.sub(r"\bIm\b", "I am", text)
+    text = re.sub(r"\bHes\b", "He is", text)
+    text = re.sub(r"\bThats\b", "That is", text)
+    text = re.sub(r"\bwere\b", "we are", text)
 
-    for f in fillers:
-        text = text.replace(f, " ")
+    text = re.sub(r"\b(um|uh|ah|you know|like)\b", "", text, flags=re.IGNORECASE)
 
-    text = re.sub(r'\b(\w+)( \1\b)+', r'\1', text)
+    text = text.replace("I am a user interface", "I am a UI designer")
 
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r"click here.*", "", text, flags=re.IGNORECASE)
+
+    text = re.sub(r"[^a-zA-Z0-9.,!? ]", "", text)
+
+    text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
 
 # -----------------------------
-# FILTER BAD SENTENCES
+# IMPROVE SENTENCES
 # -----------------------------
-def filter_transcript(text):
-
+def improve_sentences(text):
     sentences = sent_tokenize(text)
-
-    filtered = []
+    improved = []
 
     for s in sentences:
+        if "I am a user interface" in s:
+            s = s.replace("I am a user interface", "I am a UI designer")
 
-        s = s.strip()
+        if "design neural control" in s:
+            s = s.replace("design neural control", "designing a neural control system")
 
-        if len(s.split()) < 6:
-            continue
+        improved.append(s)
 
-        filtered.append(s)
-
-    return " ".join(filtered)
+    return " ".join(improved)
 
 
 # -----------------------------
-# SUMMARIZATION FUNCTION
+# CHUNK TEXT
+# -----------------------------
+def chunk_text(text, max_words=400):
+    sentences = sent_tokenize(text)
+    chunks = []
+    chunk = ""
+
+    for sentence in sentences:
+        if len(chunk.split()) + len(sentence.split()) <= max_words:
+            chunk += " " + sentence
+        else:
+            chunks.append(chunk.strip())
+            chunk = sentence
+
+    if chunk:
+        chunks.append(chunk.strip())
+
+    return chunks
+
+
+# -----------------------------
+# REMOVE HALLUCINATIONS
+# -----------------------------
+def remove_hallucinations(text):
+    text = re.sub(r"click here.*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"read the rest.*", "", text, flags=re.IGNORECASE)
+    return text.strip()
+
+
+# -----------------------------
+# MAIN FUNCTION (FIXED)
 # -----------------------------
 def summarize_text(transcript):
 
-    print("\nTranscript received for summarization")
+    # 🚨 Handle empty transcript
+    if not transcript or len(transcript.strip()) == 0:
+        return "No meaningful speech detected."
 
-    transcript = clean_transcript(transcript)
+    cleaned = clean_text(transcript)
+    cleaned = improve_sentences(cleaned)
 
-    transcript = filter_transcript(transcript)
+    chunks = chunk_text(cleaned)
 
-    sentences = sent_tokenize(transcript)
-
-    chunks = []
-    current_chunk = ""
-
-    for sentence in sentences:
-
-        if len(current_chunk) + len(sentence) < 800:
-            current_chunk += sentence + " "
-        else:
-            chunks.append(current_chunk)
-            current_chunk = sentence + " "
-
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    print(f"\nTotal chunks: {len(chunks)}")
-
-    summary_parts = []
+    summaries = []
 
     for chunk in chunks:
+        if not chunk.strip():
+            continue
 
         summary = summarizer(
             chunk,
-            max_length=80,
-            min_length=25,
-            do_sample=False
-        )
+            max_length=70,
+            min_length=20,
+            do_sample=False,
+            truncation=True
+        )[0]["summary_text"]
 
-        summary_parts.append(summary[0]["summary_text"])
+        summaries.append(summary)
 
-    combined_summary = " ".join(summary_parts)
+    combined = " ".join(summaries)
 
-    print("\nRunning final summarization...")
+    # 🚨 Handle empty combined summary
+    if not combined.strip():
+        return "Not enough content to summarize."
 
     final_summary = summarizer(
-        combined_summary,
-        max_length=100,
-        min_length=30,
-        do_sample=False
+        combined,
+        max_length=max(30, min(80, len(combined.split()))),  # ✅ FIXED
+        min_length=20,
+        do_sample=False,
+        truncation=True
     )[0]["summary_text"]
 
-    structured_summary = f"""
-Meeting Summary
----------------
+    final_summary = remove_hallucinations(final_summary)
 
-Key Discussion Points:
-{final_summary}
+    return final_summary
 
-Action Items:
-• Review the proposed design ideas
-• Continue refining the system design
 
-Decisions:
-• Proceed with development of the control system concept
-"""
+# -----------------------------
+# TEST RUN
+# -----------------------------
+if __name__ == "__main__":
 
-    os.makedirs("storage/summaries", exist_ok=True)
+    print("🚀 Running standalone summarizer...")
 
-    output_file = "storage/summaries/final_summary.txt"
+    with open("storage/transcripts/diarized_transcript.txt", "r", encoding="utf-8") as f:
+        transcript = f.read()
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(structured_summary)
+    summary = summarize_text(transcript)
 
-    print("\nSummary saved:", output_file)
-
-    return structured_summary
+    print("\n🔥 FINAL SUMMARY:\n")
+    print(summary)

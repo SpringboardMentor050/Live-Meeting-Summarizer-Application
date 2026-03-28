@@ -3,11 +3,10 @@ Meeting Summary
 ---------------
 
 Key Discussion Points:
-Designers are working on a new remote control. There are three different stages to the design. At this point, you get to try out the whiteboard over there.
+David, Andrew and Craig were tasked with designing a neural control system. They were asked to draw their favourite animal and sum up its characteristics. David chose to draw a beagle, while Andrew drew a dog.
 
 Action Items:
-• Review the proposed design ideas
-• Continue refining the system design
+• No clear action items identified
 
 Decisions:
-• Proceed with development of the control system concept
+• No clear decisions identified

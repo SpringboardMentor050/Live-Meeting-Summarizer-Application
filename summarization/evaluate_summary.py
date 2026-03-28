@@ -18,7 +18,7 @@ and characters while using the whiteboard to explain concepts.
 # Load generated summary
 # -----------------------------
 
-with open("storage/summaries/ami_summary.txt", "r", encoding="utf-8") as f:
+with open("storage/summaries/final_summary.txt", "r", encoding="utf-8") as f:
     generated = f.read()
 
 print("\nGenerated Summary:")

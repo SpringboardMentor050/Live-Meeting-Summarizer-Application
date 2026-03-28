@@ -1,16 +1,13 @@
 import whisper
 import os
 
-START_TIME = 77
-END_TIME = 300
+# Load model once (better performance)
+model = whisper.load_model("base")   # 🔥 use base for speed
 
 
 def transcribe_audio(audio_file):
 
     print("Transcribing audio...")
-
-    # better accuracy
-    model = whisper.load_model("medium")
 
     result = model.transcribe(
         audio_file,
@@ -28,19 +25,17 @@ def transcribe_audio(audio_file):
         end = segment["end"]
         text = segment["text"].strip()
 
-        if start >= START_TIME and end <= END_TIME:
+        # ✅ ONLY remove noise (keep everything else)
+        if len(text.split()) < 2:
+            continue
 
-            # remove noise segments
-            if len(text.split()) < 2:
-                continue
+        transcript += text + " "
 
-            transcript += text + " "
-
-            segments.append({
-                "start": start,
-                "end": end,
-                "text": text
-            })
+        segments.append({
+            "start": start,
+            "end": end,
+            "text": text
+        })
 
     transcript = transcript.strip()
 
