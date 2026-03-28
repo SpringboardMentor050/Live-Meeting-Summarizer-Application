@@ -1,15 +1,6 @@
-SPEAKER_02: Yes, sir
-SPEAKER_02: I'll go to the bank
-SPEAKER_02: I'll go to the bank
-SPEAKER_02: Go to the bank
-SPEAKER_01: No, no, no
-SPEAKER_03: Yes, yes, yes, yes, yes, yes, yes, yes
-SPEAKER_01: I was thinking about it
-SPEAKER_01: In my career
-SPEAKER_01: In my career
-SPEAKER_05: I was thinking about it
-SPEAKER_04: after I started watching movies
-SPEAKER_00: I realised that Euros will be 3000
-SPEAKER_05: Its gonna wait till a little bit
-SPEAKER_05: But I think that probably is 2000
-SPEAKER_05: I'll record for 100 more years
+SPEAKER_00: Hello everyone, welcome to my meeting is a classic polite and a vector opening to set a positive
+SPEAKER_00: tone. Based on standard professional practices, here is how you can expand on that to start
+SPEAKER_00: your voiceover or meeting, along with tips to make it impactful.
+SPEAKER_00: 1. Opening voiceover scripts, examples.
+SPEAKER_00: 1. Formal, Hello everyone and welcome to this meeting.
+SPEAKER_00: 2. I am a and I appreciate everyone taking it.
