@@ -1,31 +1,69 @@
-from diarization import diarize_audio
-from stt import transcribe_audio
-from align import align_speakers
-from summarizer import summarize_meeting
+import sys
+import os
 
-audio_file = "data/ES2002a.Array1-01.wav"
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))) 
+from backend.stt import transcribe_audio
+from backend.diarization import diarize
+from utils.merger import merge_transcript_and_speakers
+from backend.summarizer import generate_summary
 
-print("Running speaker diarization...")
 
-diarization = diarize_audio(audio_file)
+def run_pipeline(audio_file):
+    result = {
+        "status": "Starting",
+        "transcript": "",
+        "merged": "",
+        "summary": ""
+    }
 
-print("Running transcription...")
+    try:
+        # ------------------ STEP 1: STT ------------------
+        print("🔄 Transcribing audio...")
+        result["status"] = "Transcribing"
 
-transcript = transcribe_audio(audio_file)
+        text, segments = transcribe_audio(audio_file)
+        result["transcript"] = text
 
-print("Aligning speakers...")
+        # ------------------ STEP 2: DIARIZATION ------------------
+        print("🔄 Running diarization...")
+        result["status"] = "Diarizing"
 
-final_transcript = align_speakers(diarization, transcript)
+        speakers = diarize(audio_file)
 
-print("\n--- DIARIZED TRANSCRIPT ---\n")
+        # ------------------ STEP 3: MERGE ------------------
+        print("🔄 Merging transcript with speakers...")
+        result["status"] = "Merging"
 
-for line in final_transcript:
-    print(line)
+        merged_text = merge_transcript_and_speakers(segments, speakers)
+        result["merged"] = merged_text
 
-meeting_text = "\n".join(final_transcript)
+        # ------------------ STEP 4: SUMMARY ------------------
+        print("🔄 Generating summary...")
+        result["status"] = "Summarizing"
 
-print("\nGenerating meeting summary...\n")
+        summary = generate_summary(merged_text)
+        result["summary"] = summary
 
-summary = summarize_meeting(meeting_text)
+        result["status"] = "Done"
 
-print(summary)
+    except Exception as e:
+        result["status"] = f"Error: {str(e)}"
+
+    return result
+
+
+# ------------------ RUN (Standalone Demo) ------------------
+
+if __name__ == "__main__":
+    audio_file = "data/ES2002a.Array1-01.wav"
+
+    output = run_pipeline(audio_file)
+
+    print("\n--- TRANSCRIPT ---\n")
+    print(output["transcript"])
+
+    print("\n--- DIARIZED TRANSCRIPT ---\n")
+    print(output["merged"])
+
+    print("\n--- SUMMARY ---\n")
+    print(output["summary"])
