@@ -1,31 +1,30 @@
 # Live Meeting Analyzer
 
-A complete, end-to-end meeting assistance platform built in Python. This app captures live audio, performs real-time Speech-to-Text (STT), automatically diarizes speakers post-meeting, and uses Large Language Models to generate actionable meeting summaries.
+A complete meeting assistance platform built in Python. This application captures live audio, performs real-time Speech-to-Text (STT), automatically diarizes speakers, and generates actionable meeting summaries using Large Language Models.
 
-## Architecture
-
-- **Frontend UI**: Built with Streamlit, providing a premium, modern, glassmorphism-inspired "Control Center" experience with real-time feedback loops.
-- **Audio Capture**: Multi-threaded `sounddevice` engine running non-blocking capturing.
-- **Real-time STT**: Offline processing using `Vosk` (small lightweight, English model).
-- **Speaker Diarization**: Uses `pyannote.audio` running via Hugging Face API to map transcribed words to distinct speakers.
-- **AI Summary**: Uses a Groq-hosted LLaMA 3 model to process the diarized text and generate comprehensive markdown reports.
-- **Data Persistence**: A JSON-based history manager stores transcripts and summaries, allowing users to browse, download (`.md`, `.pdf`), or email past sessions via an integrated SMTP system.
+## Features
+- **Real-Time Transcription**: Live speech-to-text using local Vosk models.
+- **Speaker Diarization**: Identifies different speakers post-meeting via `pyannote.audio`.
+- **AI Summarization**: Extracts key action items using LLaMA models.
+- **Session Management**: Secure login and history storage with PDF/Markdown export and email capabilities.
 
 ## Setup Instructions
 
-1. Install dependencies:
+1. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-2. Set up your `.env` file with the following keys:
+
+2. Configure environment variables in a `.env` file in the root directory:
    ```env
    HF_TOKEN=your_hugging_face_token
    GROQ_API_KEY=your_groq_api_key
    SENDER_EMAIL=your_email@gmail.com
    SENDER_PASSWORD=your_app_password
    ```
-3. Run the application:
+
+3. Launch the application:
    ```bash
    streamlit run app.py
    ```
-   *Demo login credentials*: Username: `admin`, Password: `admin123`
+   *(Demo Login: Username: `admin` | Password: `admin123`)*
