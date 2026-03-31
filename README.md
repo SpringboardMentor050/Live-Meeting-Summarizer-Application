@@ -1,7 +1,6 @@
 # 🚀 AI Live Meeting Summarizer
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 This project converts meeting audio into text, identifies speakers, and generates a summary.
 
 ## Features
@@ -50,16 +49,12 @@ An AI-powered real-time meeting summarizer that:
 ![Diarization](https://img.shields.io/badge/Speaker-Diarization-purple)
 ![Transformers](https://img.shields.io/badge/Model-BART-red)
 ![Status](https://img.shields.io/badge/Project-Active-success)
->>>>>>> 9dece4a ( README for enhanced project documentation)
 
 An end-to-end AI system that converts meeting audio into structured summaries using **Speech Recognition, Speaker Diarization, and NLP-based summarization**.
 
 ---
 
-<<<<<<< HEAD
-## Status
-Currently building STT module.
->>>>>>> 32c4f04 (Initial clean commit without venv)
+
 =======
 ## 📌 Project Overview
 
@@ -333,4 +328,4 @@ Unlike basic speech-to-text systems, this project integrates:
 ## 🔗 GitHub
 
 https://github.com/SpringboardMentor050/Live-Meeting-Summarizer-Application
->>>>>>> 9dece4a ( README for enhanced project documentation)
+
