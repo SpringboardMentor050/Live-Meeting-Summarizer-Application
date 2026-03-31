@@ -10,9 +10,12 @@ import os
 import time
 import warnings
 import logging
+import json
+from datetime import datetime
 from milestone3_fusion import IntegratedFusionEngine
 from dotenv import load_dotenv
 from auth import login_ui, logout
+import history_manager as hm
 
 # --- Silence Library Warnings ---
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -177,101 +180,118 @@ with st.sidebar:
 
 # --- Header Section ---
 st.markdown('<h1 class="main-title">🎙️ Meeting Engine AI</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Real-time STT • Speaker Diarization • AI Summary</p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Secure • Intelligent • High Performance</p>', unsafe_allow_html=True)
 
-col_ctrl, col_log = st.columns([1, 1.8], gap="large") 
+main_tab1, main_tab2 = st.tabs(["🎙️ New Meeting", "📁 Session History"])
 
-with col_ctrl:
-    st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.subheader("Control Center")
-    
-    # Start Button
-    if not st.session_state.recording:
-        if st.button("🔴 Start Live Recording", use_container_width=True):
-            if not hf_token or not groq_key:
-                st.error("Please provide API keys in the sidebar first.")
-            else:
-                st.session_state.fusion = IntegratedFusionEngine(hf_token=hf_token, groq_key=groq_key)
-                st.session_state.fusion.start_session()
-                st.session_state.recording = True
-                st.session_state.final_results = None
-                st.session_state.live_transcript = ""
-                st.rerun()
-    else:
-        # Stop Button
-        if st.button("⏹️ Stop & Generate Report", use_container_width=True):
-            st.session_state.recording = False
-    
-    # Status Display
-    if st.session_state.recording:
-        st.markdown('<div class="status-active">● RECORDING ACTIVE</div>', unsafe_allow_html=True)
-        st.info("System is capturing live audio and transcribing on-the-fly.")
-    elif st.session_state.final_results:
-        st.success("Analysis Complete")
-    else:
-        st.write("Ready to begin a new session.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+with main_tab1:
+    col_ctrl, col_log = st.columns([1, 1.8], gap="large") 
 
-with col_log:
-    st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-    st.subheader("Live Audio Feed")
-    log_container = st.empty()
-    
-    # Render function for the transcript log
-    def render_transcript(text):
-        escaped_text = text.replace("\n", "<br>")
-        html = f"""
-        <div class="transcript-container">
-            <span class="live-text">>_ Initializing Engine...</span><br>
-            {escaped_text}
-            <span class="live-text">█</span>
-        </div>
-        """
-        log_container.markdown(html, unsafe_allow_html=True)
-
-    # ---------------------------------------------------------
-    # REAL-TIME LOOP
-    # ---------------------------------------------------------
-    if st.session_state.recording:
-        while st.session_state.recording:
-            # Fetch incrementals
-            for chunk in st.session_state.fusion.get_live_incremental():
-                st.session_state.live_transcript += chunk + " "
-                render_transcript(st.session_state.live_transcript)
-                time.sleep(0.01)
-            
-            if not st.session_state.recording:
-                break
-            time.sleep(0.1)
-    else:
-        render_transcript(st.session_state.live_transcript)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- Post-Processing Logic ---
-if not st.session_state.recording and st.session_state.fusion and not st.session_state.final_results:
-    with st.status("🧠 Engineering Final Report...", expanded=True) as status:
-        st.write("Generating Speaker Diarization map...")
-        results = st.session_state.fusion.stop_session()
-        st.write("Running LLaMA 3.1 Summarization...")
-        st.session_state.final_results = results
-        status.update(label="Report Generated!", state="complete", expanded=False)
-    st.rerun()
-
-# --- Display Final Deliverables ---
-if st.session_state.final_results:
-    st.divider()
-    tab1, tab2 = st.tabs(["👥 Diarized Transcript", "📓 AI Summary & Action Items"])
-    
-    with tab1:
+    with col_ctrl:
         st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.code(st.session_state.final_results['transcript_formatted'], language="text")
-        st.download_button("📥 Download JSON/Text", st.session_state.final_results['transcript_formatted'], "transcript.txt", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.subheader("Control Center")
         
-    with tab2:
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.markdown(st.session_state.final_results['summary'])
-        st.download_button("📥 Export AI Summary", st.session_state.final_results['summary'], "summary.md", use_container_width=True)
+        # Start Button
+        if not st.session_state.recording:
+            if st.button("🔴 Start Live Recording", use_container_width=True):
+                if not hf_token or not groq_key:
+                    st.error("Please provide API keys in the sidebar first.")
+                else:
+                    st.session_state.fusion = IntegratedFusionEngine(hf_token=hf_token, groq_key=groq_key)
+                    st.session_state.fusion.start_session()
+                    st.session_state.recording = True
+                    st.session_state.final_results = None
+                    st.session_state.live_transcript = ""
+                    st.rerun()
+        else:
+            # Stop Button
+            if st.button("⏹️ Stop & Generate Report", use_container_width=True):
+                st.session_state.recording = False
+        
+        # Status Display
+        if st.session_state.recording:
+            st.markdown('<div class="status-active">● RECORDING ACTIVE</div>', unsafe_allow_html=True)
+            st.info("Capturing live audio and transcribing...")
+        elif st.session_state.final_results:
+            st.success("Analysis Complete")
+        else:
+            st.write("Ready to begin.")
+        
         st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_log:
+        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+        st.subheader("Live Feed")
+        log_container = st.empty()
+        
+        def render_transcript(text):
+            escaped_text = text.replace("\n", "<br>")
+            html = f'<div class="transcript-container">{escaped_text}<span class="live-text">█</span></div>'
+            log_container.markdown(html, unsafe_allow_html=True)
+
+        if st.session_state.recording:
+            while st.session_state.recording:
+                for chunk in st.session_state.fusion.get_live_incremental():
+                    st.session_state.live_transcript += chunk + " "
+                    render_transcript(st.session_state.live_transcript)
+                    time.sleep(0.01)
+                
+                if not st.session_state.recording:
+                    break
+                time.sleep(0.1)
+        else:
+            render_transcript(st.session_state.live_transcript)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- Post-Processing Logic ---
+    if not st.session_state.recording and st.session_state.fusion and not st.session_state.final_results:
+        with st.status("🧠 Engineering Final Report...", expanded=True) as status:
+            st.write("Diarization...")
+            results = st.session_state.fusion.stop_session()
+            st.write("Saving history...")
+            hm.save_meeting(st.session_state.user, results['transcript_formatted'], results['summary'])
+            st.write("Finalizing...")
+            st.session_state.final_results = results
+            status.update(label="Report Generated!", state="complete", expanded=False)
+        st.rerun()
+
+    # --- Display Current Deliverables ---
+    if st.session_state.final_results:
+        st.divider()
+        st_tab1, st_tab2 = st.tabs(["👥 Diarized Transcript", "📓 AI Summary"])
+        
+        with st_tab1:
+            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+            st.code(st.session_state.final_results['transcript_formatted'], language="text")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with st_tab2:
+            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+            st.markdown(st.session_state.final_results['summary'])
+            st.markdown('</div>', unsafe_allow_html=True)
+
+with main_tab2:
+    st.subheader("📜 Previous Sessions")
+    history = hm.list_history(st.session_state.user)
+    
+    if not history:
+        st.info("No recorded sessions found.")
+    else:
+        for item in history:
+            with st.expander(f"🕒 {item['timestamp']} - Summary Preview", expanded=False):
+                st.markdown('<div class="premium-card">', unsafe_allow_html=True)
+                st.markdown(f"**Speaker Count Check:** {item['summary'][:200]}...")
+                st.divider()
+                st.markdown("### AI Summary")
+                st.markdown(item['summary'])
+                st.divider()
+                st.markdown("### Transcript Preview")
+                st.code(item['transcript'][:500] + "...", language="text")
+                
+                col_dl1, col_dl2 = st.columns(2)
+                with col_dl1:
+                    st.download_button(f"📥 Download Transcript", item['transcript'], f"transcript_{item['timestamp']}.txt", key=f"dl_t_{item['filename']}")
+                with col_dl2:
+                    st.download_button(f"📥 Download Summary", item['summary'], f"summary_{item['timestamp']}.md", key=f"dl_s_{item['filename']}")
+                st.markdown('</div>', unsafe_allow_html=True)
