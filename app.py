@@ -16,6 +16,7 @@ from milestone3_fusion import IntegratedFusionEngine
 from dotenv import load_dotenv
 from auth import login_ui, logout
 import history_manager as hm
+from export_utils import generate_pdf_bytes, send_meeting_email
 
 # --- Silence Library Warnings ---
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -250,7 +251,7 @@ with main_tab1:
             st.write("Diarization...")
             results = st.session_state.fusion.stop_session()
             st.write("Saving history...")
-            hm.save_meeting(st.session_state.user, results['transcript_formatted'], results['summary'])
+            hm.save_meeting(st.session_state.user, results['transcript_formatted'], results['summary'], results.get('raw_words', []))
             st.write("Finalizing...")
             st.session_state.final_results = results
             status.update(label="Report Generated!", state="complete", expanded=False)
@@ -269,6 +270,33 @@ with main_tab1:
         with st_tab2:
             st.markdown('<div class="premium-card">', unsafe_allow_html=True)
             st.markdown(st.session_state.final_results['summary'])
+            st.divider()
+            
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.download_button("📥 Export MD", st.session_state.final_results['summary'], "summary.md", use_container_width=True)
+            with c2:
+                pdf_bytes = generate_pdf_bytes(st.session_state.final_results['summary'])
+                st.download_button("📥 Export PDF", data=pdf_bytes, file_name="summary.pdf", mime="application/pdf", use_container_width=True)
+            
+            st.divider()
+            st.markdown("#### 📧 Email this Report")
+            with st.form("email_form"):
+                email_target = st.text_input("Recipient Email")
+                subject_input = st.text_input("Meeting Title", value="Live Session")
+                submit_email = st.form_submit_button("Send Summary")
+                if submit_email:
+                    if not email_target:
+                        st.error("Please provide an email.")
+                    else:
+                        subject = f"Meeting Summary - {datetime.now().strftime('%Y-%m-%d')} / {subject_input}"
+                        pd_bytes = generate_pdf_bytes(st.session_state.final_results['summary'])
+                        succ, msg = send_meeting_email(email_target, subject, st.session_state.final_results['summary'], pd_bytes)
+                        if succ:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
+            
             st.markdown('</div>', unsafe_allow_html=True)
 
 with main_tab2:
@@ -289,9 +317,12 @@ with main_tab2:
                 st.markdown("### Transcript Preview")
                 st.code(item['transcript'][:500] + "...", language="text")
                 
-                col_dl1, col_dl2 = st.columns(2)
+                col_dl1, col_dl2, col_dl3 = st.columns(3)
                 with col_dl1:
-                    st.download_button(f"📥 Download Transcript", item['transcript'], f"transcript_{item['timestamp']}.txt", key=f"dl_t_{item['filename']}")
+                    st.download_button(f"📥 Download Transcript", item['transcript'], f"transcript_{item['timestamp']}.txt", key=f"dl_t_{item['filename']}", use_container_width=True)
                 with col_dl2:
-                    st.download_button(f"📥 Download Summary", item['summary'], f"summary_{item['timestamp']}.md", key=f"dl_s_{item['filename']}")
+                    st.download_button(f"📥 Export MD", item['summary'], f"summary_{item['timestamp']}.md", key=f"dl_s_{item['filename']}", use_container_width=True)
+                with col_dl3:
+                    h_pdf_bytes = generate_pdf_bytes(item['summary'])
+                    st.download_button(f"📥 Export PDF", data=h_pdf_bytes, file_name=f"summary_{item['timestamp']}.pdf", mime="application/pdf", key=f"dl_pdf_{item['filename']}", use_container_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)

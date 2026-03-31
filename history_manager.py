@@ -4,7 +4,7 @@ from datetime import datetime
 
 HISTORY_DIR = "history"
 
-def save_meeting(user, transcript, summary):
+def save_meeting(user, transcript, summary, speaker_info=None):
     if not os.path.exists(HISTORY_DIR):
         os.makedirs(HISTORY_DIR)
         
@@ -15,7 +15,8 @@ def save_meeting(user, transcript, summary):
         "user": user,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "transcript": transcript,
-        "summary": summary
+        "summary": summary,
+        "speaker_info": speaker_info
     }
     
     with open(filename, "w", encoding="utf-8") as f:
