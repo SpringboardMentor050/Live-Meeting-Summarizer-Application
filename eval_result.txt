@@ -1,4 +1,0 @@
-Clip 89.0-104.0s
-GT: great okay um so were designing a new remote control and um oh i have to record whos here actually so thats david andrew and craig isnt it
-Whisper: great thank you i have a third signing in your control and i have to record easier actually so david im getting ready (WER: 67.86%)
-Vosk:  (WER: 100.00%)

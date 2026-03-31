@@ -58,7 +58,7 @@ class MeetingAnalyzerEngine:
         wf.close()
         return all_words
 
-    def execute_pipeline(self, wav_path, template_name="standard"):
+    def execute_pipeline(self, wav_path, num_speakers=None, template_name="standard"):
         """
         Runs full Post-Meeting Processing:
         1. STT -> words with timestamps
@@ -72,7 +72,7 @@ class MeetingAnalyzerEngine:
         words = self.extract_word_timestamps(wav_path)
         
         # 2. Diarization
-        segments = self.diarizer.perform_diarization(wav_path)
+        segments = self.diarizer.perform_diarization(wav_path, num_speakers=num_speakers)
         
         # 3. Merging & Syncing
         synced_data = self.diarizer.synchronize_with_stt(words, segments)
@@ -104,14 +104,29 @@ class MeetingAnalyzerEngine:
         print(f"[Engine] Deliverables saved to {t_path} and {s_path}")
 
 
+import argparse
+
 if __name__ == "__main__":
     # Internal Evaluation Script
+    parser = argparse.ArgumentParser(description="Meeting Analyzer Engine - Milestone 2")
+    parser.add_argument("--audio", type=str, help="Path to the .wav file to process.")
+    parser.add_argument("--out", type=str, default="MILESTONE2_RESULTS", help="Base name for output files.")
+    parser.add_argument("--num-speakers", type=int, help="Specify the number of speakers if known.")
+    
+    args = parser.parse_args()
+    
     BASE = r"f:\LiveMeetingAnalyzerProject"
-    AUDIO_FILE = os.path.join(BASE, "audio", "ES2002a_trimmed.wav")
+    AUDIO_FILE = args.audio or os.path.join(BASE, "audio", "ES2002a_trimmed.wav")
     
     if os.path.exists(AUDIO_FILE):
+        print(f"\n[Engine] Starting analysis on: {AUDIO_FILE}\n")
         engine = MeetingAnalyzerEngine()
-        res = engine.execute_pipeline(AUDIO_FILE)
-        engine.save_results(res, os.path.join(BASE, "MILESTONE2_SAMPLE"))
+        res = engine.execute_pipeline(AUDIO_FILE, num_speakers=args.num_speakers)
+        engine.save_results(res, os.path.join(BASE, args.out))
     else:
-        print("[Engine] Sample audio file missing.")
+        print(f"[Engine] Audio file missing: {AUDIO_FILE}")
+         
+
+
+
+         

@@ -13,3 +13,5 @@ groq
 python-dotenv
 pandas
 rouge-score
+noisereduce
+yt-dlp

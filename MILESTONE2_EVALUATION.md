@@ -19,7 +19,7 @@ Below is a snapshot of the synchronized output from `milestone2_engine.py`:
 ```
 
 ### 2.2 Python Function for Diarization
-The core logic resides in `module3_diarization.py` under the `DiarizationEngine.diarize_audio()` method.
+The core logic resides in `module3_diarization.py` under the `DiarizationEngine.perform_diarization()` method.
 It utilizes the `pyannote/speaker-diarization-3.1` pipeline for segment detection and a mid-point word-matching algorithm for STT synchronization.
 
 ### 2.3 Evaluation

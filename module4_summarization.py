@@ -20,6 +20,14 @@ PROMPT_TEMPLATES = {
     "technical": {
         "system": "You are a technical meeting architect. Capture architectural decisions, technical debt, and next engineering steps.",
         "user_template": "Provide a detailed technical breakdown of this discussion with sections for Architecture, Dependencies, and Blockers.\n\nTranscript:\n{transcript}"
+    },
+    "decisions": {
+        "system": "You are a strategy consultant. Focus exclusively on key decisions and strategic shifts discussed.",
+        "user_template": "Analyze the transcript and produce a 'Strategic Decision Log'. Highlight what was decided, who is responsible, and what are the strategic implications.\n\nTranscript:\n{transcript}"
+    },
+    "standup": {
+        "system": "You are an agile coach. Extract progress, blockers, and goals for the next 24 hours.",
+        "user_template": "Summarize this standup into: 1) What was accomplished, 2) Blockers identified, 3) Focus for today.\n\nTranscript:\n{transcript}"
     }
 }
 

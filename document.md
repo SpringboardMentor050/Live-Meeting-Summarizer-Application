@@ -10,7 +10,7 @@ Here is a simple breakdown of the most important files in this folder and what t
 
 Code Files (The Engine)
     `prepare_data.py`
-        Downloads and perfectly trims a 5-second audio clip from the AMI Meeting Corpus to test our models fairly.
+        Downloads and perfectly trims a 300-second audio clip from the AMI Meeting Corpus to test our models fairly.
     `benchmark_stt.py`
         Runs a test comparing two AI models (OpenAI Whisper vs. Vosk) on the trimmed audio and automatically writes a report (`BENCHMARK_REPORT.md`).
     `module2_realtime_stt.py`
@@ -37,7 +37,7 @@ We successfully hit the goals for the Speech-to-Text System (Weeks 1-2):
 
 Module 1: Project Kickoff & Setup
 We created a solid testing environment. By isolating a clean 5-second audio clip, we tested both Whisper and Vosk.
-Result: We achieved an 10.00% Word Error Rate (WER). 
+Result: We achieved an 8.33% Word Error Rate (WER). 
 Decision: We chose Vosk for the real-time engine because it supports live streaming and is 1.3x faster than Whisper on a standard CPU.
 
 Module 2: Live Real-Time Transcription

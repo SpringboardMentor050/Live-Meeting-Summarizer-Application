@@ -38,7 +38,7 @@ class DiarizationEngine:
         except Exception as e:
             print(f"[Diarization] Warning: Failed to load pyannote pipeline ({e}). Switching to energy-based segmenter.")
 
-    def perform_diarization(self, wav_path):
+    def perform_diarization(self, wav_path, num_speakers=None):
         """
         Detects speaker segments (start, end, label).
         Returns list of dicts: [{'start': 0.0, 'end': 1.0, 'speaker': 'SPEAKER_01'}]
@@ -46,7 +46,14 @@ class DiarizationEngine:
         # --- Primary: Pyannote ---
         if self.pipeline:
             try:
-                diarization = self.pipeline(wav_path)
+                # Load audio locally to avoid torchcodec/ffmpeg internal loader error
+                y, sr = librosa.load(wav_path, sr=16000)
+                wav_tensor = torch.from_numpy(y).unsqueeze(0) # Mono (1, time)
+                
+                # Pass waveform dictionary directly
+                waveform_dict = {"waveform": wav_tensor, "sample_rate": sr}
+                diarization = self.pipeline(waveform_dict, num_speakers=num_speakers)
+                
                 segments = []
                 for turn, _, speaker in diarization.itertracks(yield_label=True):
                     segments.append({
@@ -55,8 +62,8 @@ class DiarizationEngine:
                         "speaker": speaker
                     })
                 return segments
-            except Exception:
-                print("[Diarization] Pyannote processing error. Using fallback...")
+            except Exception as e:
+                print(f"[Diarization] Pyannote processing error: {e}. Using fallback...")
 
         # --- Fallback: Energy-based VAD ---
         # Detects voice segments based on energy thresholds as proxy for speaker turns

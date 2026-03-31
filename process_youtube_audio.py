@@ -2,6 +2,7 @@
 process_youtube_audio.py 
 -------------------------
 Integrates YouTube audio extraction, noise reduction, and the Milestone 2 engine.
+Shows real-time progress for the presentation.
 """
 
 import os
@@ -11,6 +12,11 @@ import time
 import librosa
 import soundfile as sf
 import noisereduce as nr
+try:
+    from static_ffmpeg import add_paths
+    add_paths()
+except ImportError:
+    pass
 from milestone2_engine import MeetingAnalyzerEngine
 
 class YouTubeProcessor:
@@ -21,58 +27,64 @@ class YouTubeProcessor:
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
         
-    def download_audio(self, url, out_filename="youtube_raw.wav"):
+    def download_audio(self, url, out_filename="youtube_raw.wav", duration=60):
         """
-        Extracts a 60-second snippet of audio from YouTube.
+        Extracts a snippet of audio from YouTube.
         """
         out_path = os.path.join(self.output_dir, out_filename)
-        print(f"[YouTube] Extracting audio from {url} ...")
+        # Convert duration to HH:MM:SS format
+        m, s = divmod(duration, 60)
+        h, m = divmod(m, 60)
+        time_str = f"{h:02d}:{m:02d}:{s:02d}"
         
-        # Try to use yt-dlp to download and convert to WAV
-        # Note: --extract-audio --audio-format wav usually needs ffmpeg.
-        # This function acts as a robust downloader.
+        print(f"\n[PROGRESS] 1/4 - Extraction from YouTube started ({duration}s clip)...", flush=True)
+        print(f"[YouTube] Source: {url}", flush=True)
+        
         try:
+            # Use sys.executable -m yt_dlp for environment robustness
             cmd = [
-                "yt-dlp",
+                sys.executable, "-m", "yt_dlp",
                 "--extract-audio",
                 "--audio-format", "wav",
-                "--postprocessor-args", "ffmpeg:-ss 00:00:00 -t 00:01:00",
+                "--ffmpeg-location", "ffmpeg",
+                "--postprocessor-args", f"ffmpeg:-ss 00:00:00 -t {time_str}",
                 "-o", out_path,
                 url
             ]
+            # Run without capture so output is visible in terminal for the user
             subprocess.run(cmd, check=True)
-            print(f"[YouTube] Audio saved to {out_path}")
+            print(f"[YouTube] Audio saved to {out_path}", flush=True)
             return out_path
         except Exception as e:
-            print(f"[YouTube] Error: Download failed ({e}). Check if yt-dlp and ffmpeg are in PATH.")
+            print(f"[YouTube] Error: Download failed ({e}). Check if yt-dlp and ffmpeg are in PATH.", flush=True)
             return None
 
     def clean_audio(self, input_wav, out_filename="youtube_cleaned.wav"):
         """
         Applies Spectral Gating noise reduction and peak normalization.
-        Outputs a 16kHz mono WAV for high-quality STT and Diarization.
         """
+        print(f"\n[PROGRESS] 2/4 - Audio Cleaning & Noise Reduction started...", flush=True)
         out_path = os.path.join(self.output_dir, out_filename)
-        print(f"[Cleaning] Processing audio file {input_wav}...")
         
         try:
             # 1. Load 16kHz Mono
+            print("[Cleaning] Loading audio file at 16kHz Mono...", flush=True)
             y, sr = librosa.load(input_wav, sr=16000, mono=True)
             
-            # 2. Noise Reduction (estimate from first 0.5s)
-            print("[Cleaning] Applying noise reduction (Spectral Gating)...")
+            # 2. Noise Reduction
+            print("[Cleaning] Applying Spectral Gating noise reduction...", flush=True)
             cleaned_audio = nr.reduce_noise(y=y, sr=sr, prop_decrease=0.8)
             
             # 3. Peak Normalization
-            print("[Cleaning] Normalizing peak levels to -1dB...")
+            print("[Cleaning] Normalizing peak levels to -1dB...", flush=True)
             normalized_audio = librosa.util.normalize(cleaned_audio)
             
             # 4. Save
             sf.write(out_path, normalized_audio, sr)
-            print(f"[Cleaning] Cleaned audio saved to {out_path}")
+            print(f"[Cleaning] Cleaned audio saved to {out_path}", flush=True)
             return out_path
         except Exception as e:
-            print(f"[Cleaning] Error during cleaning: {e}")
+            print(f"[Cleaning] Error during cleaning: {e}", flush=True)
             return None
 
 def main():
@@ -82,35 +94,53 @@ def main():
     # 1. Setup YouTube Processor
     processor = YouTubeProcessor(AUDIO_DIR)
     
-    # Target meeting simulation/interview on YouTube
-    YT_URL = "https://www.youtube.com/watch?v=Jm-u7qA00P8" # Sam Altman sample
+    # SAM ALTMAN STANFORD (Verified to work in this environment)
+    YT_URL = "https://www.youtube.com/watch?v=Jm-u7qA00P8"
     
     # 2. Pipeline Execution
-    raw_audio = processor.download_audio(YT_URL)
+    # Set to 120s for a "Fast Apply" and clear progress visibility
+    duration = 120 
     
-    # Fallback to local sample if download fails (e.g. missing ffmpeg)
+    raw_audio = processor.download_audio(YT_URL, duration=duration)
+    
     if not raw_audio:
-        raw_audio = os.path.join(AUDIO_DIR, "ES2002a_trimmed.wav")
-        print(f"[Engine] Download failed. Falling back to {raw_audio} for demonstration...")
+        # Fallback to local 21-minute meeting, but take a 5-minute slice for 'Fast Apply'
+        full_meeting = os.path.join(AUDIO_DIR, "ES2002a.Headset-0.wav")
+        if os.path.exists(full_meeting):
+             print(f"[Engine] YouTube Extraction failed. Slicing 5 minutes from {full_meeting} for real meeting demo...", flush=True)
+             raw_audio = os.path.join(AUDIO_DIR, "fallback_demo.wav")
+             # Slice it using ffmpeg
+             subprocess.run(["ffmpeg", "-y", "-i", full_meeting, "-t", "300", "-c", "copy", raw_audio], check=True)
+        else:
+             raw_audio = os.path.join(AUDIO_DIR, "ES2002a_trimmed.wav")
+             print(f"[Engine] YouTube Extraction failed. Falling back to {raw_audio} to show engine core progress...", flush=True)
         
     cleaned_audio = processor.clean_audio(raw_audio)
     
     if cleaned_audio:
-        print("\n" + "="*50)
-        print("[Engine] Starting Analysis on Cleaned YouTube Content...")
-        print("="*50 + "\n")
+        print(f"\n[PROGRESS] 3/4 - Starting Neural Diarization & STT Sync Engine...", flush=True)
+        print("="*60, flush=True)
+        print("Note: Speaker attribution for 2 speakers may take 1-2 minutes...", flush=True)
+        print("="*60 + "\n", flush=True)
         
         analyzer = MeetingAnalyzerEngine()
-        results = analyzer.execute_pipeline(cleaned_audio)
+        results = analyzer.execute_pipeline(cleaned_audio, num_speakers=2)
         
         # 3. Save Final Deliverables
-        analyzer.save_results(results, os.path.join(BASE, "YOUTUBE_RESULTS"))
+        print(f"\n[PROGRESS] 4/4 - Generating AI Summary (Module 4) & Saving results...", flush=True)
+        analyzer.save_results(results, os.path.join(BASE, "MILESTONE2_DELIVERABLE"))
         
-        print("\n--- Pipeline Complete ---")
-        print(f"Transcript Snippet: {results['transcript_formatted'][:150]}...")
-        print(f"Execution Time: {results['duration']:.2f}s")
+        print("\n" + "="*80, flush=True)
+        print("FINAL MEETING SUMMARY (Terminal View)", flush=True)
+        print("="*80 + "\n", flush=True)
+        print(results['summary'], flush=True)
+        print("\n" + "="*80, flush=True)
+        
+        print(f"\n--- Pipeline Complete ---", flush=True)
+        print(f"Execution Time: {results['duration']:.2f}s", flush=True)
+        print(f"Transcript & Summary deliverable files generated in current directory.", flush=True)
     else:
-        print("[Error] No cleaned audio available for analysis.")
+        print("[Error] No cleaned audio available for analysis.", flush=True)
 
 if __name__ == "__main__":
     main()
