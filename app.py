@@ -178,7 +178,6 @@ with main_tab1:
     col_ctrl, col_log = st.columns([1, 1.8], gap="large") 
 
     with col_ctrl:
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
         st.subheader("Control Center")
         
         # Start Button
@@ -206,11 +205,8 @@ with main_tab1:
             st.success("Analysis Complete")
         else:
             st.write("Ready to begin.")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col_log:
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
         st.subheader("Live Feed")
         log_container = st.empty()
         
@@ -231,8 +227,6 @@ with main_tab1:
                 time.sleep(0.1)
         else:
             render_transcript(st.session_state.live_transcript)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Post-Processing Logic ---
     if not st.session_state.recording and st.session_state.fusion and not st.session_state.final_results:
@@ -252,12 +246,9 @@ with main_tab1:
         st_tab1, st_tab2 = st.tabs(["👥 Diarized Transcript", "📓 AI Summary"])
         
         with st_tab1:
-            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
             st.code(st.session_state.final_results['transcript_formatted'], language="text")
-            st.markdown('</div>', unsafe_allow_html=True)
             
         with st_tab2:
-            st.markdown('<div class="premium-card">', unsafe_allow_html=True)
             st.markdown(st.session_state.final_results['summary'])
             st.divider()
             
@@ -285,8 +276,6 @@ with main_tab1:
                             st.success(msg)
                         else:
                             st.error(msg)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
 
 with main_tab2:
     st.subheader("📜 Previous Sessions")
@@ -297,7 +286,6 @@ with main_tab2:
     else:
         for item in history:
             with st.expander(f"🕒 {item['timestamp']} - Summary Preview", expanded=False):
-                st.markdown('<div class="premium-card">', unsafe_allow_html=True)
                 st.markdown(f"**Speaker Count Check:** {item['summary'][:200]}...")
                 st.divider()
                 st.markdown("### AI Summary")
@@ -314,4 +302,3 @@ with main_tab2:
                 with col_dl3:
                     h_pdf_bytes = generate_pdf_bytes(item['summary'])
                     st.download_button(f"📥 Export PDF", data=h_pdf_bytes, file_name=f"summary_{item['timestamp']}.pdf", mime="application/pdf", key=f"dl_pdf_{item['filename']}", use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
