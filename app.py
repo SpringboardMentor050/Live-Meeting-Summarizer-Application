@@ -138,18 +138,7 @@ if 'final_results' not in st.session_state:
 if 'live_transcript' not in st.session_state:
     st.session_state.live_transcript = ""
 
-# --- Sidebar ---
-with st.sidebar:
-    st.title("⚙️ Configuration")
-    hf_token = st.text_input("Hugging Face Token", type="password", value=os.getenv("HF_TOKEN", ""))
-    groq_key = st.text_input("Groq API Key", type="password", value=os.getenv("GROQ_API_KEY", ""))
-    
-    st.divider()
-    if st.button("🔄 Reset Application"):
-        st.session_state.recording = False
-        st.session_state.final_results = None
-        st.session_state.live_transcript = ""
-        st.rerun()
+
 
 # --- Authentication Guard ---
 if not st.session_state.authenticated:
