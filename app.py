@@ -154,8 +154,8 @@ with st.sidebar:
     st.title(f"Hi, {st.session_state.user}")
     
     st.subheader("⚙️ Settings")
-    hf_token = st.text_input("Hugging Face Token", type="password", value=os.getenv("HF_TOKEN", ""))
-    groq_key = st.text_input("Groq API Key", type="password", value=os.getenv("GROQ_API_KEY", ""))
+    hf_token = st.text_input("Hugging Face Token", type="password", value=os.getenv("HF_TOKEN", ""), key="sidebar_hf_input")
+    groq_key = st.text_input("Groq API Key", type="password", value=os.getenv("GROQ_API_KEY", ""), key="sidebar_groq_input")
     
     st.divider()
     if st.button("🔄 Reset Live Session", use_container_width=True):
