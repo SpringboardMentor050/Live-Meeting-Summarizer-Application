@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 import sounddevice as sd
 import numpy as np
@@ -14,6 +16,86 @@ from backend.pipeline import run_pipeline
 from services.live_stt import transcribe_stream
 
 st.set_page_config(page_title="AI Meeting Summarizer", layout="wide")
+
+st.markdown("""
+<style>
+
+/* Background */
+.stApp {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: white;
+}
+
+/* Title */
+h1 {
+    text-align: center;
+    color: #38bdf8;
+    animation: fadeIn 1s ease-in-out;
+}
+
+/* Buttons */
+.stButton > button {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    border-radius: 10px;
+    padding: 10px 20px;
+    border: none;
+    transition: 0.3s;
+}
+
+.stButton > button:hover {
+    transform: scale(1.05);
+}
+
+/* Live Caption Box */
+.live-box {
+    background: black;
+    color: #00ffcc;
+    padding: 15px;
+    border-radius: 12px;
+    font-family: monospace;
+    box-shadow: 0 0 15px rgba(0,255,200,0.4);
+    animation: fadeIn 0.5s ease-in-out;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Transcript */
+.transcript-box {
+    background: rgba(255,255,255,0.05);
+    padding: 15px;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+/* Summary */
+.summary-box {
+    background: rgba(56,189,248,0.1);
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 5px solid #38bdf8;
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(10px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+
+            .glow-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+    margin: 25px 0;
+    animation: glowMove 2s infinite;
+}
+
+@keyframes glowMove {
+    0% { opacity: 0.3; }
+    50% { opacity: 1; }
+    100% { opacity: 0.3; }
+}
+</style>
+""", unsafe_allow_html=True)
 
 # -----------------------------
 # SESSION STATE INIT
@@ -42,8 +124,12 @@ if "full_live_text" not in st.session_state:
 # -----------------------------
 # UI
 # -----------------------------
-st.title("🎤 AI Meeting Summarizer")
+st.markdown("""
+<h1>🎤 AI Meeting Summarizer</h1>
+""", unsafe_allow_html=True)
 st.caption("Smart Meeting Insights in Seconds")
+
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
 
 status = st.empty()
 placeholder = st.empty()
@@ -51,11 +137,12 @@ placeholder = st.empty()
 st.markdown("### 🎤 Live Captions")
 
 st.markdown(f"""
-<div style="background:black;color:#00ff9c;padding:15px;border-radius:10px;
-font-family:monospace;max-height:200px;overflow-y:auto;">
-{st.session_state.full_live_text if st.session_state.full_live_text else "Listening..."}
+<div class="live-box">
+{st.session_state.full_live_text if st.session_state.full_live_text else "🎧 Listening..."}
 </div>
 """, unsafe_allow_html=True)
+
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
 
 # -----------------------------
 # BUTTONS
@@ -184,7 +271,7 @@ if (
     and st.session_state.final_result is None
 ):
 
-    status.warning("📝 Processing...")
+    status.warning("⚡ Processing your meeting...")
 
     audio = np.concatenate(st.session_state.audio_data)
 
@@ -222,7 +309,7 @@ def format_transcript(text):
 
     return formatted.strip()
 
-
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
 # -----------------------------
 # DISPLAY RESULTS
 # -----------------------------
@@ -243,12 +330,13 @@ if st.session_state.final_result:
         else:
             formatted_text = raw_text
 
-        st.write(formatted_text)
+        st.markdown(f'<div class="transcript-box">{formatted_text}</div>', unsafe_allow_html=True)
 
     # Summary
     with col2:
         st.subheader("🧠 Summary")
-        st.write(result.get("summary", ""))
+        st.markdown(f'<div class="summary-box">{result.get("summary", "")}</div>', unsafe_allow_html=True)
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
 
     # -----------------------------
 # EXPORT
@@ -275,16 +363,21 @@ with col3:
 with col4:
     if st.button("📑 Download PDF"):
         path = export_pdf(result["diarized_transcript"], result["summary"])
-        
-        with open(path, "rb") as f:
-            st.download_button(
-                label="⬇️ Download PDF File",
-                data=f,
-                file_name="meeting.pdf",
-                mime="application/pdf"
-            )
 
-        st.success(f"Saved at: {path}")
+        if path and os.path.exists(path):
+            with open(path, "rb") as f:
+                st.download_button(
+                    label="⬇️ Download PDF File",
+                    data=f,
+                    file_name="meeting.pdf",
+                    mime="application/pdf"
+                )
+            st.success(f"Saved at: {path}")
+        else:
+            st.error("❌ PDF generation failed")
+    
+
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
 # -----------------------------
 # EMAIL
 # -----------------------------

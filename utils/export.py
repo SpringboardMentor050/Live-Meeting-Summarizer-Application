@@ -1,4 +1,5 @@
 import os
+import re
 from fpdf import FPDF
 
 OUTPUT_DIR = "outputs"
@@ -24,16 +25,48 @@ def export_md(transcript, summary):
 
 
 def export_pdf(transcript, summary):
-    file_path = os.path.join(OUTPUT_DIR, "meeting.pdf")
+    try:
+        file_path = os.path.join(OUTPUT_DIR, "meeting.pdf")
 
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.set_font("Arial", size=12)
 
-    text = transcript + "\n\n" + summary
+        def clean_text(text: str) -> str:
+            text = str(text)
+            text = text.replace("’", "'").replace("‘", "'")
+            text = text.replace(""", '"').replace(""", '"')
+            text = text.replace("–", "-").replace("—", "-")
+            text = text.replace("…", "...")
+            text = re.sub(r"[^\x00-\xFF]+", "?", text)
+            text = text.encode("latin-1", "replace").decode("latin-1")
+            return text
 
-    pdf.multi_cell(0, 10, text)
+        transcript = clean_text(transcript)
+        summary = clean_text(summary)
 
-    pdf.output(file_path)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Meeting Summary", ln=True)
 
-    return file_path
+        pdf.ln(4)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Transcript", ln=True)
+
+        pdf.set_font("Arial", size=11)
+        pdf.multi_cell(0, 8, transcript)
+
+        pdf.ln(4)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Summary", ln=True)
+
+        pdf.set_font("Arial", size=11)
+        pdf.multi_cell(0, 8, summary)
+
+        pdf.output(file_path)
+        print("✅ PDF CREATED:", file_path)
+        return file_path
+
+    except Exception as e:
+        print("❌ PDF ERROR:", e)
+        return None

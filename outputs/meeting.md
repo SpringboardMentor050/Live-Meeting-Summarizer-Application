@@ -1,16 +1,12 @@
 # Meeting Summary
 
 ## Transcript
-SPEAKER_00: Hello everyone, welcome to my meeting is a classic, effective opening for professional,
-SPEAKER_00: educational, or virtual presentations.
-SPEAKER_00: Here are a few ways to build on the opening to make it more engaging.
-SPEAKER_00: One, simple and direct, good for team meetings.
-SPEAKER_00: Hello everyone, welcome to my meeting.
-SPEAKER_00: Thank you for taking the time to be here today.
-SPEAKER_00: Hi everyone, it's great to see you all.
-SPEAKER_00: Let's get started.
-SPEAKER_00: Two, professional and structured, good for presentation.
+SPEAKER_00: Hello everyone. Welcome to my meeting is a fundamental opening phrase used to set a welcoming
+SPEAKER_00: professional or social tune at the start of the gathering. Depending on whether the
+SPEAKER_00: meeting is virtual or in person, formal or casual, here are ways to enhance that opening,
+SPEAKER_00: based on standard business and communication practices.
+SPEAKER_00: One professional forming meeting openings.
 
 
 ## Summary
-The opening of a meeting is a classic, effective opening for professional, or virtual presentations. Here are a few ways to build on the opening to make it more engaging.
+Welcome to my meeting is a fundamental opening phrase used to set a welcoming tone. Depending on whether the meeting is virtual or in person, formal or casual, here are ways
