@@ -1,42 +1,76 @@
-# Live Meeting Analyzer
+#  Live Meeting Summarizer Engine
 
-A complete, end-to-end meeting assistance platform built in Python. This application captures live audio, performs real-time Speech-to-Text (STT), automatically diarizes speakers post-meeting, and uses Large Language Models to generate actionable meeting summaries.
+An end-to-end, real-time meeting intelligence platform. This application captures live audio, transcribes it using offline STT, diarizes speakers, and generates structured AI summaries—all delivered through a  Streamlit dashboard with a robust SQLite backend.
 
-## Core Functionalities
-- **Real-Time Transcription**: Continuously captures audio from your microphone and transcribes it instantly on the screen using an offline, lightweight Vosk model.
-- **Speaker Diarization**: Accurately maps the transcribed text to distinct speakers (e.g., SPEAKER_00, SPEAKER_01) by analyzing the audio waveform via the `pyannote.audio` algorithm hosted on Hugging Face.
-- **AI Summarization**: Synthesizes the lengthy, diarized meeting logs into concise executive highlights and actionable tasks using LLaMA models running via the Groq API.
-- **History & Data Persistence**: Every completed meeting is automatically compiled and securely saved as a structured JSON log. This includes raw word-level timestamps, and it allows users to browse past sessions safely.
-- **Export & Email Integration**: Easily generate and download summaries in standard `.md` or formatted `.pdf` documents. Alternatively, instantly shoot meeting reports directly to colleagues using the built-in SMTP email system.
-- **Secure Interface**: The entire sleek Streamlit interface is protected by a login mechanism to ensure that ongoing meeting feeds and private API keys remain secure.
+##  Key Features
+- **Real-Time Transcription**: Offline STT using Vosk for low-latency live feedback.
+- **Speaker Diarization**: Multi-speaker identification using Pyannote.audio.
+- **AI-Powered Summaries**: High-speed summarization via Groq (LLaMA 3.3).
+- **Persistent Storage**: All user data and meeting histories are stored in a centralized **SQLite Database**.
+- **One-Click Export**: Download reports as Markdown or professional PDFs.
+- **Global Email Delivery**: Send meeting minutes to any recipient via a configured SMTP service.
+- **Secure Access**: Integrated Login/Signup system with password hashing.
 
-## File Structure & Module Breakdown
+---
 
-- `app.py`: The core Streamlit UI. It renders the modern layout, manages session states for recordings, handles the visual real-time loop for transcription, and provides tabs for viewing the final reports and history.
-- `auth.py`: A simple authentication module that provides a secure login/logout screen shielding the `app.py` dashboard.
-- `milestone3_fusion.py`: The main backend integration engine. It orchestrates multithreaded audio capture (using `sounddevice`), live speech-to-text processing (using `Vosk`), and coordinates data flow into the post-processing systems.
-- `milestone2_engine.py`: Defines the `MeetingAnalyzerEngine`, `SpeakerDiarizer`, and `MeetingSummarizer` classes. These components handle formatting the HuggingFace timing data and structuring the Groq API prompt.
-- `history_manager.py`: Handles the I/O operations for saving meeting records. It converts completed transcripts and metadata into JSON payloads and saves them locally into the `history/` directory.
-- `export_utils.py`: The utility module dedicated to output manipulation. It utilizes the `markdown-pdf` package to transform text logs into PDFs and features the logic to send multi-part MIME emails through Google's SMTP.
-- `requirements.txt`: The definitive list of Python libraries needed to run the project.
+##  File-by-File Guide
+| File | Purpose |
 
-## Setup Instructions
+| **`app.py`** | The main Entry Point. Handles the Streamlit UI, live loops, and page routing. |
+| **`auth.py`** | Manages User Authentication, SQLite schema initialization, and password security. |
+| **`history_manager.py`** | Handles saving/loading meeting records to/from the SQLite `meetings` table. |
+| **`milestone3_fusion.py`** | The "Processing Core." Coordinates live mic capture and real-time STT buffering. |
+| **`milestone2_engine.py`** | The "Logic Hub." Contains the logic for syncing diarization timestamps with text. |
+| **`module3_diarization.py`** | Interfaces with HuggingFace to perform speaker segmentation on the audio. |
+| **`module4_summarization.py`** | Interfaces with Groq to transform raw transcripts into structured summaries. |
+| **`export_utils.py`** | Handles PDF generation and SMTP email delivery logic. |
+| **`migrate.py`** | A utility script used to transition legacy JSON data into the new SQLite database. |
 
-1. Install Python dependencies:
+---
+
+## 🛠️ Setup & Installation
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/yourusername/Live-Meeting-Summarizer.git
+   cd Live-Meeting-Summarizer
+   ```
+
+2. **Setup Virtual Environment**:
+   ```bash
+   python -m venv venv
+   .\venv\Scripts\activate
+   ```
+
+3. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. Configure environment variables manually by creating a `.env` file in the root directory:
+4. **Environment Configuration**:
+   Create a `.env` file in the root directory:
    ```env
-   HF_TOKEN=your_hugging_face_token
-   GROQ_API_KEY=your_groq_api_key
+   GROQ_API_KEY=your_key_here
+   HF_TOKEN=your_token_here
    SENDER_EMAIL=your_email@gmail.com
-   SENDER_PASSWORD=your_app_password
+   SENDER_PASSWORD=your_gmail_app_password
    ```
 
-3. Launch the application:
+5. **Run the App**:
    ```bash
    streamlit run app.py
    ```
-   *(Demo Login: Username: `admin` | Password: `admin123`)*
+   *Default Admin login:* `admin` / `admin123`
+
+---
+
+##  Architecture Summary
+The system follows a **Threaded Pipeline Architecture**:
+1. **Input Layer**: `sounddevice` captures mic audio into a thread-safe Queue.
+2. **STT Layer**: `Vosk` (Offline) processes audio chunks for live UI rendering.
+3. **Diarization Layer**: `Pyannote` segments the saved WAV file into speaker-specific blocks.
+4. **LLM Layer**: `Groq` generates the final summary from the synced transcript.
+5. **Persistence Layer**: `SQLite3` stores all meeting deliverables and user profiles.
+
+---
+*Developed for Milestone 3 - Integrated Meeting Intelligence Application*
