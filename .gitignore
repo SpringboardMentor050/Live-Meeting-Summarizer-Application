@@ -1,0 +1,37 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data directories (keep structure, ignore contents)
+data/recordings/*.wav
+data/sessions/*.json
+data/sessions/*.parquet
+data/exports/*.md
+data/exports/*.pdf
+
+# Models (large files)
+models/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Distribution
+dist/
+build/
+*.egg-info/
