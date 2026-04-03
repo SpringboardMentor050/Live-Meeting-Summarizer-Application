@@ -25,17 +25,26 @@ class MeetingAnalyzerEngine:
         
         self.vosk_model_path = r"f:\LiveMeetingAnalyzerProject\vosk-model-small-en-us-0.15"
 
-    def extract_word_timestamps(self, wav_path):
+    def extract_word_timestamps(self, audio_path):
         """
         Uses Vosk to extract words with timestamps (Internal offline mode).
+        Converts to 16kHz mono WAV if necessary.
         """
-        print(f"[STT] Extracting timestamps for {wav_path} ...")
+        print(f"[STT] Extracting timestamps for {audio_path} ...")
         
         if not os.path.exists(self.vosk_model_path):
             print(f"[Engine] Stop: Vosk model not found at {self.vosk_model_path}")
             return []
+
+        # Automatic conversion if not a standard wav
+        from pydub import AudioSegment
+        audio = AudioSegment.from_file(audio_path)
+        audio = audio.set_frame_rate(16000).set_channels(1)
+        
+        temp_wav = "temp_stt_conversion.wav"
+        audio.export(temp_wav, format="wav")
             
-        wf = wave.open(wav_path, "rb")
+        wf = wave.open(temp_wav, "rb")
         model = Model(self.vosk_model_path)
         rec = KaldiRecognizer(model, wf.getframerate())
         rec.SetWords(True)
@@ -56,6 +65,11 @@ class MeetingAnalyzerEngine:
                 all_words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
         
         wf.close()
+        
+        # Cleanup temp file
+        try: os.remove(temp_wav)
+        except: pass
+        
         return all_words
 
     def execute_pipeline(self, wav_path, num_speakers=None, template_name="standard"):

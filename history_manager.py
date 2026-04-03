@@ -1,44 +1,77 @@
-import os
+import sqlite3
 import json
 from datetime import datetime
+import os
 
-HISTORY_DIR = "history"
+DB_FILE = "app_data.db"
 
-def save_meeting(user, transcript, summary, speaker_info=None):
-    if not os.path.exists(HISTORY_DIR):
-        os.makedirs(HISTORY_DIR)
-        
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{HISTORY_DIR}/{timestamp}_{user}.json"
+def get_db_connection():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_history_table():
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
-    data = {
-        "user": user,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "transcript": transcript,
-        "summary": summary,
-        "speaker_info": speaker_info
-    }
-    
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4)
-        
-    return filename
+    # Create meetings table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS meetings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            transcript TEXT,
+            summary TEXT,
+            speaker_info TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-def list_history(user=None):
-    if not os.path.exists(HISTORY_DIR):
-        return []
-        
-    files = [f for f in os.listdir(HISTORY_DIR) if f.endswith(".json")]
+def save_meeting(username, transcript, summary, speaker_info=None):
+    init_history_table()
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    speaker_info_json = json.dumps(speaker_info) if speaker_info else None
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO meetings (username, timestamp, transcript, summary, speaker_info)
+        VALUES (?, ?, ?, ?, ?)
+    """, (username, timestamp, transcript, summary, speaker_info_json))
+    
+    conn.commit()
+    meeting_id = cursor.lastrowid
+    conn.close()
+    
+    return meeting_id
+
+def list_history(username=None):
+    init_history_table()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if username:
+        cursor.execute("SELECT * FROM meetings WHERE username = ? ORDER BY created_at DESC", (username,))
+    else:
+        cursor.execute("SELECT * FROM meetings ORDER BY created_at DESC")
+    
+    rows = cursor.fetchall()
     meetings = []
     
-    for f in sorted(files, reverse=True):
-        try:
-            with open(os.path.join(HISTORY_DIR, f), "r", encoding="utf-8") as file:
-                data = json.load(file)
-                if user is None or data.get("user") == user:
-                    data["filename"] = f
-                    meetings.append(data)
-        except:
-            continue
-            
+    for row in rows:
+        meetings.append({
+            "id": row['id'],
+            "user": row['username'],
+            "timestamp": row['timestamp'],
+            "transcript": row['transcript'],
+            "summary": row['summary'],
+            "speaker_info": json.loads(row['speaker_info']) if row['speaker_info'] else None,
+            "filename": f"db_{row['id']}" # Compatibility with app.py referencing filename
+        })
+    
+    conn.close()
     return meetings

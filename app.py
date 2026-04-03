@@ -14,7 +14,7 @@ import json
 from datetime import datetime
 from milestone3_fusion import IntegratedFusionEngine
 from dotenv import load_dotenv
-from auth import login_ui, logout
+from auth import login_ui, logout, get_user_smtp, update_user_smtp
 import history_manager as hm
 from export_utils import generate_pdf_bytes, send_meeting_email
 
@@ -142,7 +142,8 @@ if 'live_transcript' not in st.session_state:
 
 # --- Authentication Guard ---
 if not st.session_state.authenticated:
-    _, col_auth, _ = st.columns([1, 1, 1])
+    st.markdown('<div style="height: 10vh;"></div>', unsafe_allow_html=True) # Spacer
+    _, col_auth, _ = st.columns([1, 1.5, 1])
     with col_auth:
         login_ui()
     st.stop()
@@ -150,12 +151,55 @@ if not st.session_state.authenticated:
 # --- Main Application Content (Authenticated) ---
 # --- Sidebar ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3652/3652191.png", width=100)
-    st.title(f"Hi, {st.session_state.user}")
+    st.markdown(f"""
+        <div style="text-align: center; padding-bottom: 20px;">
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0px;">Welcome back,</p>
+            <h3 style="font-family: 'Outfit', sans-serif; color: #1e3a8a; margin-top: 0px;">{st.session_state.user}</h3>
+        </div>
+    """, unsafe_allow_html=True)
     
     st.subheader("⚙️ Settings")
     hf_token = st.text_input("Hugging Face Token", type="password", value=os.getenv("HF_TOKEN", ""), key="sidebar_hf_input")
     groq_key = st.text_input("Groq API Key", type="password", value=os.getenv("GROQ_API_KEY", ""), key="sidebar_groq_input")
+    
+    with st.expander("📧 SMTP Email Settings"):
+        st.caption("Saved email credentials for sending summaries.")
+        # Load saved settings
+        saved_smtp = get_user_smtp(st.session_state.user)
+        
+        s_email = st.text_input("Sender Email", value=saved_smtp['sender_email'] if saved_smtp and saved_smtp['sender_email'] else "", placeholder="your-email@gmail.com")
+        s_pass = st.text_input("App Password", type="password", value=saved_smtp['sender_password'] if saved_smtp and saved_smtp['sender_password'] else "", placeholder="xxxx xxxx xxxx xxxx")
+        
+        col_st1, col_st2 = st.columns(2)
+        with col_st1:
+            s_server = st.text_input("SMTP Server", value=saved_smtp['smtp_server'] if saved_smtp and saved_smtp['smtp_server'] else "smtp.gmail.com")
+        with col_st2:
+            s_port = st.number_input("Port", value=saved_smtp['smtp_port'] if saved_smtp and saved_smtp['smtp_port'] else 465)
+            
+        if st.button("💾 Save SMTP Profile", use_container_width=True):
+            if update_user_smtp(st.session_state.user, s_email, s_pass, s_server, s_port):
+                st.success("✅ Saved to database!")
+                # Update current environment
+                os.environ["SENDER_EMAIL"] = s_email
+                os.environ["SENDER_PASSWORD"] = s_pass
+                os.environ["SMTP_SERVER"] = s_server
+                os.environ["SMTP_PORT"] = str(s_port)
+            else:
+                st.error("Failed to save.")
+                
+        if s_email and s_pass:
+            # Export to environment for export_utils
+            os.environ["SENDER_EMAIL"] = s_email
+            os.environ["SENDER_PASSWORD"] = s_pass
+            os.environ["SMTP_SERVER"] = s_server
+            os.environ["SMTP_PORT"] = str(s_port)
+            st.caption("✅ Setting ready for this session.")
+        
+        st.markdown("""
+            <p style='font-size: 0.8rem; color: #64748b;'>
+                <b>Note for Gmail:</b> Use a 16-character 'App Password' from Google Account settings.
+            </p>
+        """, unsafe_allow_html=True)
     
     st.divider()
     if st.button("🔄 Reset Live Session", use_container_width=True):
@@ -205,6 +249,40 @@ with main_tab1:
             st.success("Analysis Complete")
         else:
             st.write("Ready to begin.")
+
+        st.divider()
+        st.subheader("📂 Upload Recording")
+        uploaded_file = st.file_uploader("Upload .wav or .mp3", type=["wav", "mp3"])
+        if uploaded_file and not st.session_state.recording:
+            if st.button("🚀 Analyze Uploaded File", use_container_width=True):
+                if not hf_token or not groq_key:
+                    st.error("Please provide API keys in the sidebar first.")
+                else:
+                    with st.status("📁 Processing Uploaded File...", expanded=True) as status:
+                        # Save temp file
+                        temp_path = f"temp_upload_{uploaded_file.name}"
+                        with open(temp_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                            
+                        st.write("Transcribing and Diarizing...")
+                        from milestone2_engine import MeetingAnalyzerEngine
+                        engine = MeetingAnalyzerEngine(hf_token=hf_token, groq_key=groq_key)
+                        
+                        results = engine.execute_pipeline(temp_path)
+                        
+                        st.write("Saving history...")
+                        import history_manager as hm
+                        hm.save_meeting(st.session_state.user, results['transcript_formatted'], results['summary'])
+                        
+                        st.session_state.final_results = results
+                        st.session_state.live_transcript = results['transcript_formatted']
+                        status.update(label="File Analyzed!", state="complete", expanded=False)
+                        
+                        # Cleanup
+                        try: os.remove(temp_path)
+                        except: pass
+                        
+                    st.rerun()
 
     with col_log:
         st.subheader("Live Feed")
