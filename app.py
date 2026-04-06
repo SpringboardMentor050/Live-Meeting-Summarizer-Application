@@ -10,8 +10,8 @@ import re
 
 from utils.export import export_md, export_pdf
 from utils.email import send_email
-from utils.logger import save_log
 
+from utils.logger import save_log, load_log
 from backend.pipeline import run_pipeline
 from services.live_stt import transcribe_stream
 
@@ -287,10 +287,12 @@ if (
 
     st.session_state.final_result = result
 
-    save_log(
+    log_path = save_log(
         result["diarized_transcript"],
         result["summary"]
     )
+
+    st.success(f"📝 Log saved: {log_path}")
 
     status.success("✅ Processing Completed")
 
@@ -314,6 +316,8 @@ st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
 # DISPLAY RESULTS
 # -----------------------------
 if st.session_state.final_result:
+    if "current_log" in st.session_state:
+        st.info(f"📂 Viewing: {st.session_state.current_log}")
 
     result = st.session_state.final_result
 
@@ -403,3 +407,50 @@ if st.button("Send Email"):
 
     else:
         st.warning("Please enter an email")
+
+# -----------------------------
+# VIEW & SEARCH LOGS
+# -----------------------------
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
+
+st.subheader("📁 Previous Meetings")
+
+search_query = st.text_input("🔍 Search logs")
+
+if os.path.exists("logs"):
+    logs = os.listdir("logs")
+
+    # 🔍 FILTER
+    if search_query:
+        logs = [log for log in logs if search_query.lower() in log.lower()]
+
+        if not logs:
+            st.warning("❌ No matching logs found")
+
+    logs = sorted(logs, reverse=True)
+
+    for log_file in logs:
+        col1, col2 = st.columns([4, 1])
+
+        with col1:
+            st.write(f"📄 {log_file}")
+
+        with col2:
+            if st.button("Open", key=f"open_{log_file}"):
+
+                file_path = os.path.join("logs", log_file)
+
+                transcript, summary = load_log(file_path)
+
+    # ✅ DEBUG CHECK
+                print("Loaded transcript:", transcript[:100])
+                print("Loaded summary:", summary[:100])
+
+                st.session_state.final_result = {
+                "diarized_transcript": transcript,
+                "summary": summary
+                }
+
+                st.session_state.current_log = log_file
+
+                st.rerun()
