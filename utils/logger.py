@@ -1,20 +1,48 @@
-import json
 import os
 from datetime import datetime
 
-OUTPUT_DIR = "outputs"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
 
 def save_log(transcript, summary):
-    file_path = os.path.join(OUTPUT_DIR, "meeting_log.json")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    data = {
-        "timestamp": str(datetime.now()),
-        "transcript": transcript,
-        "summary": summary
-    }
+    file_name = f"meeting_{timestamp}.txt"
+    file_path = os.path.join(LOG_DIR, file_name)
 
-    with open(file_path, "a", encoding="utf-8") as f:
-        json.dump(data, f)
-        f.write("\n")
+    content = f"""
+Timestamp: {timestamp}
+
+===TRANSCRIPT===
+{transcript}
+
+===SUMMARY===
+{summary}
+"""
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return file_path
+
+
+# 🔥 NEW FUNCTION
+def load_log(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    transcript = ""
+    summary = ""
+
+    try:
+        if "===TRANSCRIPT===" in content:
+            transcript = content.split("===TRANSCRIPT===")[1].split("===SUMMARY===")[0].strip()
+
+        if "===SUMMARY===" in content:
+            summary = content.split("===SUMMARY===")[1].strip()
+
+    except Exception as e:
+        print("Log parsing error:", e)
+
+    return transcript, summary

@@ -1,12 +1,12 @@
 # Meeting Summary
 
 ## Transcript
-SPEAKER_00: Hello everyone. Welcome to my meeting is a fundamental opening phrase used to set a welcoming
-SPEAKER_00: professional or social tune at the start of the gathering. Depending on whether the
-SPEAKER_00: meeting is virtual or in person, formal or casual, here are ways to enhance that opening,
-SPEAKER_00: based on standard business and communication practices.
-SPEAKER_00: One professional forming meeting openings.
+SPEAKER_00: Welcome to the meeting. To start on a positive note, it is often helpful to greet everyone
+SPEAKER_00: with a smile. A warm, friendly greeting is essential for setting an approachable tone,
+SPEAKER_00: whether it is for a team meeting or a new group in tradition.
+SPEAKER_00: Tips for meetings. Start with warmth, a simple, high everyone, or welcome to a meeting, works
+SPEAKER_00: well to break the ice. Introductions. If you are meeting others for the first time,
 
 
 ## Summary
-Welcome to my meeting is a fundamental opening phrase used to set a welcoming tone. Depending on whether the meeting is virtual or in person, formal or casual, here are ways
+A warm, friendly greeting is essential for setting an approachable tone. Start with warmth, a simple, high everyone, or welcome to a meeting, works well to break the ice. If you are meeting others for the first
