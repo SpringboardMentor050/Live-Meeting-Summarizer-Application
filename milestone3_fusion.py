@@ -24,6 +24,8 @@ class IntegratedFusionEngine:
         self.audio_queue = queue.Queue()
         self.recording = False
         self.v_model = Model(self.post_engine.vosk_model_path)
+        self.v_rec = KaldiRecognizer(self.v_model, self.sample_rate)
+        self.v_rec.SetWords(True)
         
         # Buffers
         self.all_words = []
@@ -34,6 +36,14 @@ class IntegratedFusionEngine:
         self.recording = True
         self.all_words = []
         self.audio_buffer = []
+        # Clear queue
+        while not self.audio_queue.empty():
+            try: self.audio_queue.get_nowait()
+            except: pass
+            
+        # Reset recognizer for new session
+        self.v_rec = KaldiRecognizer(self.v_model, self.sample_rate)
+        self.v_rec.SetWords(True)
         
         # Start Threads
         self.capture_thread = threading.Thread(target=self._capture_audio, daemon=True)
@@ -53,26 +63,33 @@ class IntegratedFusionEngine:
             while self.recording:
                 time.sleep(0.1)
 
-    def stop_session(self, temp_wav_path="temp_recording.wav"):
+    def stop_session(self, temp_wav_path="temp_recording.wav", num_speakers=None, use_high_accuracy=True):
         """Stops recording and returns the results of diarization and summarization."""
         self.recording = False
         print("[Fusion] Capture stopped. Processing engine...")
         
-        # 1. Clear the queue and finalize STT results
+        # 1. Clear the queue and finalize any remaining audio
         self._drain_queue()
         
-        # 2. Save the audio buffer to a WAV file for Diarization
+        # 2. Save the full audio buffer to a WAV file
         self._save_audio_buffer(temp_wav_path)
         
-        # 3. Post-Processing Pipeline
+        # 3. HIGH ACCURACY PIPELINE
         print("[Fusion] Starting Post-Processing...")
         
-        # Note: We already have 'self.all_words' from the live session.
-        # We perform Diarization on the saved WAV.
-        segments = self.post_engine.diarizer.perform_diarization(temp_wav_path)
+        # Determine transcription words
+        if use_high_accuracy:
+            print("[Fusion] Using Whisper for final transcript...")
+            final_words = self.post_engine.transcribe_with_whisper(temp_wav_path)
+        else:
+            print("[Fusion] Using live-captured words (Vosk)...")
+            final_words = self.all_words
+        
+        # Perform Diarization on the saved WAV
+        segments = self.post_engine.diarizer.perform_diarization(temp_wav_path, num_speakers=num_speakers)
         
         # Syncing
-        synced_data = self.post_engine.diarizer.synchronize_with_stt(self.all_words, segments)
+        synced_data = self.post_engine.diarizer.synchronize_with_stt(final_words, segments)
         transcript_formatted = self.post_engine.diarizer.format_output(synced_data)
         
         # Summarization
@@ -81,23 +98,20 @@ class IntegratedFusionEngine:
         return {
             "transcript_formatted": transcript_formatted,
             "summary": summary,
-            "raw_words": self.all_words
+            "raw_words": final_words
         }
 
     def _drain_queue(self):
         """Finalizes any remaining audio chunks in the queue."""
-        rec = KaldiRecognizer(self.v_model, self.sample_rate)
-        rec.SetWords(True)
-        
         while not self.audio_queue.empty():
             data = self.audio_queue.get()
-            if rec.AcceptWaveform(data):
-                res = json.loads(rec.Result())
+            if self.v_rec.AcceptWaveform(data):
+                res = json.loads(self.v_rec.Result())
                 if "result" in res:
                     for w in res["result"]:
                         self.all_words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
         
-        final_res = json.loads(rec.FinalResult())
+        final_res = json.loads(self.v_rec.FinalResult())
         if "result" in final_res:
             for w in final_res["result"]:
                 self.all_words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
@@ -112,20 +126,20 @@ class IntegratedFusionEngine:
         print(f"[Fusion] Audio saved to {path}")
 
     def get_live_incremental(self):
-        """Yields new words from the queue for live UI updates."""
-        rec = KaldiRecognizer(self.v_model, self.sample_rate)
-        rec.SetWords(True)
-        
+        """Yields dictionary with type ('partial' or 'final') and text for UI."""
         while self.recording or not self.audio_queue.empty():
             try:
                 data = self.audio_queue.get(timeout=0.1)
-                if rec.AcceptWaveform(data):
-                    res = json.loads(rec.Result())
-                    if "text" in res:
-                        # Capture word-level timestamps for final synchronization
-                        if "result" in res:
-                            for w in res["result"]:
-                                self.all_words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
-                        yield res["text"]
+                if self.v_rec.AcceptWaveform(data):
+                    res = json.loads(self.v_rec.Result())
+                    if "result" in res:
+                        for w in res["result"]:
+                            self.all_words.append({"word": w["word"], "start": w["start"], "end": w["end"]})
+                        yield {"type": "final", "text": res.get("text", "")}
+                else:
+                    # Partial result for super-fast feedback
+                    res = json.loads(self.v_rec.PartialResult())
+                    if res.get("partial", "").strip():
+                        yield {"type": "partial", "text": res["partial"]}
             except queue.Empty:
                 continue

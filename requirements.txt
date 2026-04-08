@@ -16,3 +16,4 @@ rouge-score
 noisereduce
 yt-dlp
 markdown-pdf
+

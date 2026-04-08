@@ -162,6 +162,12 @@ with st.sidebar:
     hf_token = st.text_input("Hugging Face Token", type="password", value=os.getenv("HF_TOKEN", ""), key="sidebar_hf_input")
     groq_key = st.text_input("Groq API Key", type="password", value=os.getenv("GROQ_API_KEY", ""), key="sidebar_groq_input")
     
+    st.divider()
+    st.subheader("🛠️ Accuracy Settings")
+    use_high_acc = st.checkbox("High Accuracy (Whisper Large-v3)", value=True, help="Uses Groq Whisper instead of local Vosk for final reports. Recommended for mobile.")
+    num_speakers = st.number_input("Expected Number of Speakers", min_value=0, max_value=10, value=0, help="Help Pyannote distinguish voices. 0 = auto-detect.")
+    num_speakers = None if num_speakers == 0 else int(num_speakers)
+
     with st.expander("📧 SMTP Email Settings"):
         st.caption("Saved email credentials for sending summaries.")
         # Load saved settings
@@ -230,8 +236,9 @@ with main_tab1:
                 if not hf_token or not groq_key:
                     st.error("Please provide API keys in the sidebar first.")
                 else:
-                    st.session_state.fusion = IntegratedFusionEngine(hf_token=hf_token, groq_key=groq_key)
-                    st.session_state.fusion.start_session()
+                    with st.spinner("🚀 Loading Meeting AI Models..."):
+                        st.session_state.fusion = IntegratedFusionEngine(hf_token=hf_token, groq_key=groq_key)
+                        st.session_state.fusion.start_session()
                     st.session_state.recording = True
                     st.session_state.final_results = None
                     st.session_state.live_transcript = ""
@@ -268,7 +275,7 @@ with main_tab1:
                         from milestone2_engine import MeetingAnalyzerEngine
                         engine = MeetingAnalyzerEngine(hf_token=hf_token, groq_key=groq_key)
                         
-                        results = engine.execute_pipeline(temp_path)
+                        results = engine.execute_pipeline(temp_path, num_speakers=num_speakers, use_high_accuracy=use_high_acc)
                         
                         st.write("Saving history...")
                         import history_manager as hm
@@ -288,29 +295,27 @@ with main_tab1:
         st.subheader("Live Feed")
         log_container = st.empty()
         
-        def render_transcript(text):
+        def render_transcript(text, partial_text=""):
             escaped_text = text.replace("\n", "<br>")
+            if partial_text:
+                escaped_text += f' <span class="live-text">{partial_text}...</span>'
             html = f'<div class="transcript-container">{escaped_text}<span class="live-text">█</span></div>'
             log_container.markdown(html, unsafe_allow_html=True)
 
-        if st.session_state.recording:
-            while st.session_state.recording:
-                for chunk in st.session_state.fusion.get_live_incremental():
-                    st.session_state.live_transcript += chunk + " "
-                    render_transcript(st.session_state.live_transcript)
-                    time.sleep(0.01)
-                
-                if not st.session_state.recording:
-                    break
-                time.sleep(0.1)
+        # Initial render to show the dark container immediately
+        if st.session_state.recording or st.session_state.final_results or st.session_state.live_transcript:
+            if st.session_state.final_results:
+                render_transcript(st.session_state.final_results['transcript_formatted'])
+            else:
+                render_transcript(st.session_state.live_transcript or "(Waiting for speech...)")
         else:
-            render_transcript(st.session_state.live_transcript)
+            render_transcript("Ready to begin session. Click Start to record.")
 
     # --- Post-Processing Logic ---
     if not st.session_state.recording and st.session_state.fusion and not st.session_state.final_results:
         with st.status("🧠 Engineering Final Report...", expanded=True) as status:
-            st.write("Diarization...")
-            results = st.session_state.fusion.stop_session()
+            st.write("Diarization & High-Accuracy Sync...")
+            results = st.session_state.fusion.stop_session(num_speakers=num_speakers, use_high_accuracy=use_high_acc)
             st.write("Saving history...")
             hm.save_meeting(st.session_state.user, results['transcript_formatted'], results['summary'], results.get('raw_words', []))
             st.write("Finalizing...")
@@ -355,6 +360,8 @@ with main_tab1:
                         else:
                             st.error(msg)
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
 with main_tab2:
     st.subheader("📜 Previous Sessions")
     history = hm.list_history(st.session_state.user)
@@ -380,3 +387,27 @@ with main_tab2:
                 with col_dl3:
                     h_pdf_bytes = generate_pdf_bytes(item['summary'])
                     st.download_button(f"📥 Export PDF", data=h_pdf_bytes, file_name=f"summary_{item['timestamp']}.pdf", mime="application/pdf", key=f"dl_pdf_{item['filename']}", use_container_width=True)
+
+# --- Background Loops & Real-time Processing (Must stay outside tabs and layout blocks to avoid blocking) ---
+if st.session_state.recording and st.session_state.fusion:
+    # This loop runs while the script is active. 
+    # Streamlit will re-run the whole script when st.session_state.recording becomes False.
+    for chunk in st.session_state.fusion.get_live_incremental():
+        if chunk["type"] == "final":
+            if chunk["text"].strip():
+                st.session_state.live_transcript += chunk["text"] + " "
+            # Use the placeholder to update UI
+            render_transcript(st.session_state.live_transcript)
+        else:
+            # Update UI with partial result immediately
+            render_transcript(st.session_state.live_transcript, partial_text=chunk["text"])
+        
+        # Check if recording stopped during iteration
+        if not st.session_state.recording:
+            break
+        time.sleep(0.01)
+    
+    # If the generator finishes naturally
+    if st.session_state.recording:
+        time.sleep(0.1)
+        st.rerun()
