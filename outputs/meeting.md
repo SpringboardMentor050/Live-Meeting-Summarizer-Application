@@ -1,12 +1,14 @@
 # Meeting Summary
 
 ## Transcript
-SPEAKER_00: Welcome to the meeting. To start on a positive note, it is often helpful to greet everyone
-SPEAKER_00: with a smile. A warm, friendly greeting is essential for setting an approachable tone,
-SPEAKER_00: whether it is for a team meeting or a new group in tradition.
-SPEAKER_00: Tips for meetings. Start with warmth, a simple, high everyone, or welcome to a meeting, works
-SPEAKER_00: well to break the ice. Introductions. If you are meeting others for the first time,
+SPEAKER_00: Hello, thank you for the welcome.
+SPEAKER_00: To start your meeting effectively, try using the warm opening like I'm delighted to welcome
+SPEAKER_00: Or thank you for joining us today to set a positive, engaging tone and establish a clear
+SPEAKER_00: Here are some ways to follow up that opening.
+SPEAKER_00: One, set the stage, I'd like to extend a warm welcome to everyone.
+SPEAKER_00: Two, state purpose, I'll go today is two.
+SPEAKER_00: Three, engage, why don't we brainstorm a few ideas together?
 
 
 ## Summary
-A warm, friendly greeting is essential for setting an approachable tone. Start with warmth, a simple, high everyone, or welcome to a meeting, works well to break the ice. If you are meeting others for the first
+To start your meeting effectively, try using the warm opening like I'm delighted to welcome. Or thank you for joining us today to set a positive, engaging tone and establish a clear purpose.
