@@ -1,0 +1,218 @@
+[33mcommit e0eca9e04e24f041e6883bfd688af1833dfc6ae5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: shivam9142kumar <shivam9142kumar@gmail.com>
+Date:   Mon Mar 2 20:49:54 2026 +0530
+
+    Done some chnages
+
+[1mdiff --git a/services/batch_transcribe.py b/services/batch_transcribe.py[m
+[1mindex 5393d66..adfdf5d 100644[m
+[1m--- a/services/batch_transcribe.py[m
+[1m+++ b/services/batch_transcribe.py[m
+[36m@@ -3,10 +3,13 @@[m [mimport wave[m
+ import json[m
+ from vosk import Model, KaldiRecognizer[m
+ [m
+[31m-MODEL_PATH = "models/vosk-model-small-en-us-0.15"[m
+[32m+[m[32mMODEL_PATH = "models/vosk-model-en-us-0.22"[m
+ AUDIO_FOLDER = "storage/processed_audio"[m
+ OUTPUT_FOLDER = "storage/transcripts"[m
+ [m
+[32m+[m[32mSTART_TIME = 77[m
+[32m+[m[32mEND_TIME = 300[m
+[32m+[m
+ model = Model(MODEL_PATH)[m
+ [m
+ for file in os.listdir(AUDIO_FOLDER):[m
+[36m@@ -24,11 +27,22 @@[m [mfor file in os.listdir(AUDIO_FOLDER):[m
+         transcript = ""[m
+ [m
+         while True:[m
+[31m-            data = wf.readframes(4000)[m
+[32m+[m[32m            data = wf.readframes(8000)[m
+ [m
+             if len(data) == 0:[m
+                 break[m
+ [m
+[32m+[m[32m            # current audio time[m
+[32m+[m[32m            current_time = wf.tell() / wf.getframerate()[m
+[32m+[m
+[32m+[m[32m            # skip audio before START_TIME[m
+[32m+[m[32m            if current_time < START_TIME:[m
+[32m+[m[32m                continue[m
+[32m+[m
+[32m+[m[32m            # stop after END_TIME[m
+[32m+[m[32m            if current_time > END_TIME:[m
+[32m+[m[32m                break[m
+[32m+[m
+             if rec.AcceptWaveform(data):[m
+                 result = json.loads(rec.Result())[m
+                 transcript += result.get("text", "") + " "[m
+[1mdiff --git a/services/compare_models_wer.py b/services/compare_models_wer.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..367d5c2[m
+[1m--- /dev/null[m
+[1m+++ b/services/compare_models_wer.py[m
+[36m@@ -0,0 +1,61 @@[m
+[32m+[m[32mimport re[m
+[32m+[m[32mfrom jiwer import wer[m
+[32m+[m
+[32m+[m[32mREFERENCE_FILE = "storage/reference/reference_trimmed.txt"[m
+[32m+[m[32mVOSK_FILE = "storage/transcripts/ES2002a.Array1-01.txt"[m
+[32m+[m[32mWHISPER_FILE = "storage/transcripts/whisper_output.txt"[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef normalize(text):[m
+[32m+[m
+[32m+[m[32m    text = text.lower()[m
+[32m+[m
+[32m+[m[32m    # remove punctuation[m
+[32m+[m[32m    text = re.sub(r"[^\w\s]", "", text)[m
+[32m+[m
+[32m+[m[32m    # remove filler words[m
+[32m+[m[32m    fillers = ["um", "uh", "erm", "hmm", "yeah", "okay"][m
+[32m+[m[32m    words = text.split()[m
+[32m+[m[32m    words = [w for w in words if w not in fillers][m
+[32m+[m
+[32m+[m[32m    text = " ".join(words)[m
+[32m+[m
+[32m+[m[32m    # remove extra spaces[m
+[32m+[m[32m    text = re.sub(r"\s+", " ", text)[m
+[32m+[m
+[32m+[m[32m    return text.strip()[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# load files[m
+[32m+[m[32mwith open(REFERENCE_FILE, "r", encoding="utf-8") as f:[m
+[32m+[m[32m    reference = f.read()[m
+[32m+[m
+[32m+[m[32mwith open(VOSK_FILE, "r", encoding="utf-8") as f:[m
+[32m+[m[32m    vosk = f.read()[m
+[32m+[m
+[32m+[m[32mwith open(WHISPER_FILE, "r", encoding="utf-8") as f:[m
+[32m+[m[32m    whisper = f.read()[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# normalize[m
+[32m+[m[32mreference = normalize(reference)[m
+[32m+[m[32mvosk = normalize(vosk)[m
+[32m+[m[32mwhisper = normalize(whisper)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# compute WER[m
+[32m+[m[32mvosk_wer = wer(reference, vosk)[m
+[32m+[m[32mwhisper_wer = wer(reference, whisper)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mprint("\nReference words:", len(reference.split()))[m
+[32m+[m[32mprint("Vosk words:", len(vosk.split()))[m
+[32m+[m[32mprint("Whisper words:", len(whisper.split()))[m
+[32m+[m
+[32m+[m[32mprint("\nVOSK WER:", vosk_wer)[m
+[32m+[m[32mprint("WHISPER WER:", whisper_wer)[m
+[32m+[m
+[32m+[m[32mif whisper_wer < vosk_wer:[m
+[32m+[m[32m    print("\nBetter Model: Whisper")[m
+[32m+[m[32melse:[m
+[32m+[m[32m    print("\nBetter Model: Vosk")[m
+\ No newline at end of file[m
+[1mdiff --git a/services/convert_audio.py b/services/convert_audio.py[m
+[1mindex ca12d66..985c078 100644[m
+[1m--- a/services/convert_audio.py[m
+[1m+++ b/services/convert_audio.py[m
+[36m@@ -1,19 +1,36 @@[m
+[32m+[m[32mimport os[m
+ import librosa[m
+ import soundfile as sf[m
+[32m+[m[32mimport numpy as np[m
+ [m
+[31m-INPUT_FILE = "storage/raw_audio/ES2002a.Array1-01.wav"[m
+[31m-OUTPUT_FILE = "storage/processed_audio/trimmed_30s.wav"[m
+[32m+[m[32mINPUT_FOLDER = "storage/raw_audio"[m
+[32m+[m[32mOUTPUT_FOLDER = "storage/processed_audio"[m
+ [m
+[31m-print("Loading audio...")[m
+[32m+[m[32mTARGET_SR = 16000[m
+ [m
+[31m-audio, sr = librosa.load(INPUT_FILE, sr=16000, mono=True)[m
+[32m+[m[32mos.makedirs(OUTPUT_FOLDER, exist_ok=True)[m
+ [m
+[31m-print("Trimming first 30 seconds...")[m
+[32m+[m[32mfor file in os.listdir(INPUT_FOLDER):[m
+ [m
+[31m-audio_trimmed = audio[0:30*16000][m
+[32m+[m[32m    if file.endswith(".wav"):[m
+ [m
+[31m-print("Saving audio...")[m
+[32m+[m[32m        input_path = os.path.join(INPUT_FOLDER, file)[m
+[32m+[m[32m        output_path = os.path.join(OUTPUT_FOLDER, file)[m
+ [m
+[31m-sf.write(OUTPUT_FILE, audio_trimmed, 16000, subtype='PCM_16')[m
+[32m+[m[32m        print("Processing:", file)[m
+ [m
+[31m-print("Audio converted successfully!")[m
+\ No newline at end of file[m
+[32m+[m[32m        # load audio[m
+[32m+[m[32m        audio, sr = librosa.load(input_path, sr=TARGET_SR, mono=True)[m
+[32m+[m
+[32m+[m[32m        # remove silence[m
+[32m+[m[32m        audio, _ = librosa.effects.trim(audio, top_db=20)[m
+[32m+[m
+[32m+[m[32m        # normalize volume[m
+[32m+[m[32m        audio = audio / np.max(np.abs(audio))[m
+[32m+[m
+[32m+[m[32m        # save processed audio[m
+[32m+[m[32m        sf.write(output_path, audio, TARGET_SR, subtype="PCM_16")[m
+[32m+[m
+[32m+[m[32m        print("Saved:", output_path)[m
+[32m+[m
+[32m+[m[32mprint("\nAudio preprocessing completed.")[m
+\ No newline at end of file[m
+[1mdiff --git a/services/diarization_service.py b/services/diarization_service.py[m
+[1mdeleted file mode 100644[m
+[1mindex c70ea9d..0000000[m
+[1m--- a/services/diarization_service.py[m
+[1m+++ /dev/null[m
+[36m@@ -1,13 +0,0 @@[m
+[31m-from pyannote.audio import Pipeline[m
+[31m-[m
+[31m-pipeline = Pipeline.from_pretrained([m
+[31m-    "pyannote/speaker-diarization"[m
+[31m-)[m
+[31m-[m
+[31m-audio_file = "storage/processed_audio/es2002a_array1_16k.wav"[m
+[31m-[m
+[31m-diarization = pipeline(audio_file)[m
+[31m-[m
+[31m-for turn, _, speaker in diarization.itertracks(yield_label=True):[m
+[31m-    print(f"{turn.start:.1f} → {turn.end:.1f} : {speaker}")[m
+[31m-    [m
+\ No newline at end of file[m
+[1mdiff --git a/services/evaluate_wer.py b/services/evaluate_wer.py[m
+[1mindex 935fa75..9c09e90 100644[m
+[1m--- a/services/evaluate_wer.py[m
+[1m+++ b/services/evaluate_wer.py[m
+[36m@@ -1,16 +1,52 @@[m
+[32m+[m[32mimport re[m
+ from jiwer import wer[m
+ [m
+[31m-# Load reference transcript[m
+[31m-with open("storage/reference/reference_trimmed.txt", "r", encoding="utf-8") as f:[m
+[31m-    reference = f.read().strip().lower()[m
+[32m+[m[32mREFERENCE_FILE = "storage/reference/reference_trimmed.txt"[m
+[32m+[m[32mHYPOTHESIS_FILE = "storage/transcripts/ES2002a.Array1-01.txt"[m
+ [m
+[31m-# Load hypothesis transcript[m
+[31m-with open("storage/transcripts/trimmed_30s.txt", "r", encoding="utf-8") as f:[m
+[31m-    hypothesis = f.read().strip().lower()[m
+ [m
+[31m-print("\nReference:\n", reference[:200])[m
+[31m-print("\nHypothesis:\n", hypothesis)[m
+[32m+[m[32mdef normalize(text):[m
+ [m
+[32m+[m[32m    text = text.lower()[m
+[32m+[m
+[32m+[m[41m    [m
+[32m+[m[32m    text = re.sub(r"[^\w\s]", "", text)[m
+[32m+[m
+[32m+[m[41m    [m
+[32m+[m[32m    fillers = 

@@ -1,206 +1,331 @@
-# 🎙️ Real-Time Meeting Summarizer
+# 🚀 AI Live Meeting Summarizer
 
-A production-grade, real-time meeting summarizer system built with **Streamlit**. It captures live audio, converts speech to text, identifies speakers via diarization, and generates structured summaries using LLMs — all from a single web interface.
+
+This project converts meeting audio into text, identifies speakers, and generates a summary.
+
+## Features
+- Speech to Text using Whisper
+- Speaker Diarization using Pyannote
+- Meeting Summary Generation
+- Word Error Rate (WER) Evaluation
+
+## Technologies Used
+- Python
+- Streamlit
+- OpenAI Whisper
+- Pyannote.audio
+- HuggingFace
+
+## How to Run
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+Run the application:
+
+streamlit run app.py
+
+## Project Structure
+
+app.py – Main Streamlit application  
+stt.py – Speech to text using Whisper  
+diarization.py – Speaker diarization  
+summarizer.py – Text summarization  
+utils.py – Helper functions  
+
+## Author
+Jampina Nagalakshmi
+=======
+An AI-powered real-time meeting summarizer that:
+- Converts speech to text
+- Performs speaker diarization
+- Generates structured summaries using LLMs
+- Supports export and email
+=======
+![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)
+![AI](https://img.shields.io/badge/AI-NLP-green)
+![ASR](https://img.shields.io/badge/Speech%20Recognition-Vosk%20%7C%20Whisper-orange)
+![Diarization](https://img.shields.io/badge/Speaker-Diarization-purple)
+![Transformers](https://img.shields.io/badge/Model-BART-red)
+![Status](https://img.shields.io/badge/Project-Active-success)
+
+An end-to-end AI system that converts meeting audio into structured summaries using **Speech Recognition, Speaker Diarization, and NLP-based summarization**.
 
 ---
 
-## ✨ Features
 
-| Feature | Description |
-|---|---|
-| **Live Audio Capture** | Non-blocking, multi-threaded microphone recording via `sounddevice` |
-| **Real-Time STT** | Streaming transcription with **Vosk** (offline) or **Whisper** (offline/online) |
-| **Speaker Diarization** | Identify *who spoke when* using **pyannote.audio** |
-| **LLM Summarization** | Structured summaries (key points, decisions, action items) via **Groq LLaMA 3.1** or **HuggingFace BART/T5** |
-| **Streamlit UI** | Start/Stop buttons, live transcript, diarized view, summary display, status indicators |
-| **Export** | Download as **Markdown** or **PDF** |
-| **Email** | Send summaries via SMTP (TLS) |
-| **Session Logging** | Every session saved as **JSON + Parquet** with full metadata |
-| **Evaluation Suite** | WER, DER, ROUGE, BLEU metrics with automated test suite |
+=======
+## 📌 Project Overview
 
----
+The **AI Live Meeting Summarizer** automates meeting understanding by transforming raw audio into meaningful insights.
 
-## 🏗️ Architecture
+### 🔍 What this system does:
 
-```
-Frontend (Streamlit)
-        ↓
-Audio Capture Thread (sounddevice)
-        ↓
-STT Engine (Vosk / Whisper – real-time streaming)
-        ↓
-Queue / Buffer (thread-safe)
-        ↓
-Diarization (pyannote.audio – post-processing)
-        ↓
-LLM Summarization (Groq LLaMA / HuggingFace)
-        ↓
-Output → Export (MD/PDF) → Email → Session Log
-```
+* 🎤 Converts speech → text (ASR)
+* 🧑‍🤝‍🧑 Identifies speakers (who spoke when)
+* 🧠 Generates intelligent summaries
+* 📊 Evaluates performance using industry metrics
+
+This project uses real-world data from the **AMI Meeting Corpus**, making it practical and research-oriented.
 
 ---
 
-## 📁 Project Structure
+## 🎯 Key Features
 
+* ✅ Dual ASR System (Vosk + Whisper)
+* ✅ Real-Time Speech Recognition
+* ✅ Speaker Diarization (Pyannote)
+* ✅ Transformer-Based Summarization (BART)
+* ✅ Model Comparison using WER
+* ✅ Multi-Metric Evaluation (WER, DER, ROUGE, BLEU)
+* ✅ Fully Integrated Pipeline
+
+---
+
+## 🏗️ Pipeline Architecture
+
+```id="3iqd63"
+Audio Input → Preprocessing → ASR → Diarization → Alignment → Summarization → Output
 ```
-├── app.py                        # Streamlit entry point
-├── config.py                     # Centralised configuration
-├── requirements.txt              # Python dependencies
-├── .env.example                  # Environment variables template
+
+---
+
+## 📂 Project Structure
+
+```id="mf1m3p"
+LIVE-MEETING-SUMMARIZER-APPLICATION/
+
+├── services/
+│   ├── batch_transcribe.py
+│   ├── compare_models_wer.py
+│   ├── convert_audio.py
+│   ├── evaluate_wer.py
+│   ├── evaluate_wer_whisper.py
+│   ├── realtime_speech_wer.py
+│   ├── speaker_diarization.py
+│   ├── stt_service.py
+│   ├── whisper_transcribe.py
+│   ├── xml_to_text_trimmed.py
+│
+├── summarization/
+│   ├── summarizer.py
+│   ├── evaluate_summary.py
+│   ├── prompts.py
+│
+├── storage/
+│   ├── raw_audio/
+│   ├── processed_audio/
+│   ├── reference/
+│   ├── transcripts/
+│   ├── summaries/
+│
+├── diarization/
+│   ├── compute_der.py
+│   ├── reference.rttm
+│   ├── predicted.rttm
+│
+├── run_pipeline.py
 ├── README.md
-│
-├── src/
-│   ├── __init__.py
-│   ├── audio_capture.py          # Multi-threaded mic recording
-│   ├── stt_engine.py             # Vosk + Whisper backends
-│   ├── diarization.py            # pyannote.audio pipeline
-│   ├── transcript_processor.py   # Align STT + speaker segments
-│   ├── summarizer.py             # Groq + HuggingFace backends
-│   ├── pipeline.py               # End-to-end orchestration
-│   ├── export.py                 # MD, PDF export + email
-│   ├── data_logger.py            # JSON/Parquet session logging
-│   └── utils.py                  # Shared helpers
-│
-├── tests/
-│   ├── __init__.py
-│   ├── test_stt.py               # WER evaluation tests
-│   ├── test_diarization.py       # DER evaluation tests
-│   ├── test_summarizer.py        # ROUGE/BLEU evaluation tests
-│   ├── test_pipeline.py          # Integration tests
-│   └── evaluate.py               # Standalone evaluation script
-│
-├── data/
-│   ├── recordings/               # Saved .wav files
-│   ├── sessions/                 # JSON + Parquet session logs
-│   └── exports/                  # Exported MD/PDF files
-│
-└── models/                       # Local model files (e.g., Vosk)
 ```
 
 ---
 
-## 🚀 Quick Start
+## ⚙️ Installation
 
-### 1. Clone & Install
+### 1️⃣ Clone Repository
 
-```bash
-git clone https://github.com/your-username/meeting-summarizer.git
-cd meeting-summarizer
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # macOS/Linux
+```bash id="0gpnv7"
+git clone https://github.com/SpringboardMentor050/Live-Meeting-Summarizer-Application.git
+cd Live-Meeting-Summarizer-Application
+```
+
+---
+
+### 2️⃣ Create Virtual Environment
+
+```bash id="2r4l8c"
+python -m venv venv310
+venv310\Scripts\activate
+```
+
+---
+
+### 3️⃣ Install Dependencies
+
+```bash id="2f8k9o"
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+---
 
-```bash
-cp .env.example .env
+### 4️⃣ Install FFmpeg (Required for Whisper)
+
+Download: https://ffmpeg.org/download.html
+Add it to system PATH
+
+---
+
+## 🧩 Model Installation & Setup
+
+---
+
+### 🔹 Vosk Model
+
+Download from: https://alphacephei.com/vosk/models
+
+```id="m01d4p"
+vosk-model-en-us-0.22
 ```
 
-Edit `.env` and fill in your keys:
+Place inside:
 
-| Variable | Required | Description |
-|---|---|---|
-| `GROQ_API_KEY` | Yes (if using Groq) | Get from [console.groq.com](https://console.groq.com) |
-| `HF_AUTH_TOKEN` | Yes (for diarization) | Get from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
-| `SMTP_EMAIL` | For email feature | Gmail address |
-| `SMTP_PASSWORD` | For email feature | Gmail App Password |
-
-### 3. Download Vosk Model (if using Vosk STT)
-
-```bash
-# Download from https://alphacephei.com/vosk/models
-# Place in models/vosk-model-small-en-us-0.15/
+```id="5l3qzk"
+models/vosk-model-en-us-0.22/
 ```
 
-### 4. Run the Application
+---
 
-```bash
-streamlit run app.py
+### 🔹 Whisper Model
+
+```bash id="9m8ywr"
+pip install openai-whisper
 ```
 
-Open **http://localhost:8501** in your browser.
-
 ---
 
-## 🎮 Usage
+### 🔹 Pyannote (Diarization)
 
-1. **Start Recording** — Click `▶️ Start Recording` to begin capturing audio and see live transcription.
-2. **Stop Recording** — Click `⏹️ Stop Recording`. The system will:
-   - Save the audio as `.wav`
-   - Run speaker diarization
-   - Generate an LLM summary
-3. **View Results** — See the diarized transcript and structured summary in the UI.
-4. **Export** — Download as Markdown or PDF, or email it directly.
-5. **Past Sessions** — Browse previous meetings in the sidebar.
-
----
-
-## ⚙️ Configuration
-
-All settings are managed via environment variables (`.env`) or `config.py`:
-
-| Setting | Default | Options |
-|---|---|---|
-| `STT_ENGINE` | `vosk` | `vosk`, `whisper` |
-| `WHISPER_MODEL_SIZE` | `base` | `tiny`, `base`, `small`, `medium`, `large` |
-| `SUMMARIZATION_ENGINE` | `groq` | `groq`, `huggingface` |
-| `AUDIO_SAMPLE_RATE` | `16000` | Any valid sample rate |
-
----
-
-## 🧪 Testing & Evaluation
-
-### Run Tests
-
-```bash
-pytest tests/ -v
+```bash id="v1d1oh"
+pip install pyannote.audio torch
 ```
 
-### Run Evaluation Report
-
-```bash
-python -m tests.evaluate
+```bash id="h3l9tx"
+set HF_TOKEN=your_token_here
 ```
 
-### Metrics
+---
 
-| Metric | Target | Tool |
-|---|---|---|
-| **WER** (Word Error Rate) | < 15% | `jiwer` |
-| **DER** (Diarization Error Rate) | < 20% | `pyannote.metrics` |
-| **ROUGE** (Summary quality) | > 0.4 | `rouge_score` |
-| **BLEU** (Summary quality) | — | `nltk` |
+### 🔹 BART (Summarization)
+
+```bash id="2c2y12"
+pip install transformers
+```
 
 ---
 
-## 🔧 Technology Stack
+## ▶️ How to Run
 
-| Component | Technology |
-|---|---|
-| **UI** | Streamlit |
-| **Audio** | sounddevice, scipy |
-| **STT** | Vosk, faster-whisper |
-| **Diarization** | pyannote.audio 3.1 |
-| **Summarization** | Groq (LLaMA 3.1), HuggingFace (BART/T5) |
-| **Backend** | Python threading, queue |
-| **Export** | fpdf2, markdown |
-| **Email** | smtplib (TLS) |
-| **Storage** | JSON, Parquet (pandas + pyarrow) |
-| **Evaluation** | jiwer, rouge-score, nltk |
+### Run Full Pipeline
+
+```bash id="g4yyos"
+python run_pipeline.py
+```
 
 ---
 
-## 📋 Non-Functional Requirements
+## 🧠 Models Used
 
-- **Performance**: Real-time transcription with no UI lag via async/threaded processing
-- **Reliability**: Graceful error handling; no crashes during recording
-- **Scalability**: Modular architecture supports long meetings and extensibility
-- **Accuracy**: STT ≥ 85%, clean structured summaries
+| Task               | Model                 |
+| ------------------ | --------------------- |
+| Speech Recognition | Vosk, Whisper         |
+| Diarization        | Pyannote              |
+| Summarization      | BART                  |
+| Evaluation         | WER, DER, ROUGE, BLEU |
 
 ---
 
-## 📜 License
+## 📊 Results
 
-MIT License. See [LICENSE](LICENSE) for details.
+### Speech Recognition
+
+| Model   | WER    |
+| ------- | ------ |
+| Vosk    | 0.7578 |
+| Whisper | 0.7109 |
+
+👉 Whisper performs better
+
+---
+
+### Real-Time Output
+
+```id="3el8qz"
+hello everyone welcome to the meeting
+WER: 0.0
+```
+
+---
+
+### Diarization
+
+* DER: **29.07%**
+
+---
+
+### Summarization
+
+* ROUGE F1 ≈ 0.28
+* BLEU ≈ 0.007
+
+---
+
+## 🔗 Pipeline Integration
+
+1. Audio Input
+2. Preprocessing
+3. ASR (Vosk/Whisper)
+4. Diarization
+5. Alignment
+6. Summarization
+7. Evaluation
+
+---
+
+## 📁 Outputs
+
+* whisper_output.txt
+* diarized_transcript.txt
+* final_summary.txt
+
+---
+
+## ⚠️ Challenges
+
+* Multi-speaker overlap
+* Background noise
+* Long audio processing
+
+---
+
+## 🚀 Future Improvements
+
+* Use Whisper Large
+* Improve diarization
+* Add noise reduction
+* Deploy as web app
+
+---
+
+## 💡 Why This Project Stands Out
+
+Unlike basic speech-to-text systems, this project integrates:
+
+✔ ASR + Speaker Diarization + NLP
+✔ Real-time + batch processing
+✔ Multiple evaluation metrics
+
+👉 Making it a **complete intelligent meeting assistant**
+
+---
+
+## 👨‍💻 Author
+
+**Shivam Kumar**
+
+---
+
+## 🔗 GitHub
+
+https://github.com/SpringboardMentor050/Live-Meeting-Summarizer-Application
+
