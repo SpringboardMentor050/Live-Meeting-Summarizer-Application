@@ -1,132 +1,130 @@
-# 🚀 AI Live Meeting Summarizer
+# 🎤 AI Live Meeting Summarizer
 
+<p align="center">
 
-This project converts meeting audio into text, identifies speakers, and generates a summary.
+![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge\&logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-App-red?style=for-the-badge\&logo=streamlit)
+![AI](https://img.shields.io/badge/AI-Powered-green?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
+![License](https://img.shields.io/badge/License-Educational-orange?style=for-the-badge)
 
-## Features
-- Speech to Text using Whisper
-- Speaker Diarization using Pyannote
-- Meeting Summary Generation
-- Word Error Rate (WER) Evaluation
-
-## Technologies Used
-- Python
-- Streamlit
-- OpenAI Whisper
-- Pyannote.audio
-- HuggingFace
-
-## How to Run
-
-Install dependencies:
-
-pip install -r requirements.txt
-
-Run the application:
-
-streamlit run app.py
-
-## Project Structure
-
-app.py – Main Streamlit application  
-stt.py – Speech to text using Whisper  
-diarization.py – Speaker diarization  
-summarizer.py – Text summarization  
-utils.py – Helper functions  
-
-## Author
-Jampina Nagalakshmi
-=======
-An AI-powered real-time meeting summarizer that:
-- Converts speech to text
-- Performs speaker diarization
-- Generates structured summaries using LLMs
-- Supports export and email
-=======
-![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)
-![AI](https://img.shields.io/badge/AI-NLP-green)
-![ASR](https://img.shields.io/badge/Speech%20Recognition-Vosk%20%7C%20Whisper-orange)
-![Diarization](https://img.shields.io/badge/Speaker-Diarization-purple)
-![Transformers](https://img.shields.io/badge/Model-BART-red)
-![Status](https://img.shields.io/badge/Project-Active-success)
-
-An end-to-end AI system that converts meeting audio into structured summaries using **Speech Recognition, Speaker Diarization, and NLP-based summarization**.
+</p>
 
 ---
 
+## 🎬 Demo
 
-=======
-## 📌 Project Overview
+🎥 **Project Demo Video:**
+[Watch Demo](https://github.com/SpringboardMentor050/Live-Meeting-Summarizer-Application/blob/Shivam-Kumar/PROJECT_DEMO_Video.mp4)
 
-The **AI Live Meeting Summarizer** automates meeting understanding by transforming raw audio into meaningful insights.
 
-### 🔍 What this system does:
+## 📸 UI Preview
 
-* 🎤 Converts speech → text (ASR)
-* 🧑‍🤝‍🧑 Identifies speakers (who spoke when)
-* 🧠 Generates intelligent summaries
-* 📊 Evaluates performance using industry metrics
+### 🔹 Live Captions & Recording
 
-This project uses real-world data from the **AMI Meeting Corpus**, making it practical and research-oriented.
+<img width="1200" height="500" alt="Screenshot 2026-04-06 232808" src="https://github.com/user-attachments/assets/4e6140d1-09f3-48ac-94a3-ff3afd129b04" />
+
 
 ---
 
-## 🎯 Key Features
+### 🔹 Transcript & Summary
 
-* ✅ Dual ASR System (Vosk + Whisper)
-* ✅ Real-Time Speech Recognition
-* ✅ Speaker Diarization (Pyannote)
-* ✅ Transformer-Based Summarization (BART)
-* ✅ Model Comparison using WER
-* ✅ Multi-Metric Evaluation (WER, DER, ROUGE, BLEU)
-* ✅ Fully Integrated Pipeline
+<img width="1200" height="500" alt="Screenshot 2026-04-06 232823" src="https://github.com/user-attachments/assets/09b0cf0f-ff1d-448d-b630-feee0660171f" />
+
 
 ---
 
-## 🏗️ Pipeline Architecture
+### 🔹 Export + Email + History
 
-```id="3iqd63"
-Audio Input → Preprocessing → ASR → Diarization → Alignment → Summarization → Output
-```
+<img width="1200" height="500" alt="Screenshot 2026-04-06 232833" src="https://github.com/user-attachments/assets/5a943a84-05b0-42f8-a157-023c4e9694c2" />
+
 
 ---
 
-## 📂 Project Structure
+## 🚀 Features
 
-```id="mf1m3p"
-LIVE-MEETING-SUMMARIZER-APPLICATION/
+* 🎙 Real-time Speech-to-Text (Whisper)
+* 👥 Speaker Diarization (Who spoke when)
+* 🧠 AI Meeting Summarization (BART / GPT)
+* 📜 Live Captions Display
+* 📄 Export Options (PDF + Markdown)
+* 📧 Send Summary via Email
+* 📂 Previous Meetings History + Search
+* ⚡ Streamlit Interactive UI
 
+---
+
+## 🧠 Tech Stack
+
+| Component        | Technology                     |
+| ---------------- | ------------------------------ |
+| Frontend         | Streamlit                      |
+| Backend          | Python                         |
+| ASR              | faster-whisper                 |
+| Diarization      | pyannote.audio                 |
+| NLP              | HuggingFace Transformers / GPT |
+| Audio Processing | librosa, pydub                 |
+
+---
+
+## 🏗 Project Structure
+
+```bash
+Live-Meeting-Summarizer-Application/
+│
+├── app.py
+├── run_pipeline.py
+├── requirements.txt
+├── README.md
+│
+├── backend/
+│   ├── pipeline.py
+│   ├── queue_processor.py
+│
 ├── services/
+│   ├── whisper_transcribe.py
+│   ├── stt_service.py
+│   ├── live_stt.py
 │   ├── batch_transcribe.py
-│   ├── compare_models_wer.py
+│   ├── speaker_diarization.py
+│   ├── gpt_summarizer.py
 │   ├── convert_audio.py
 │   ├── evaluate_wer.py
-│   ├── evaluate_wer_whisper.py
-│   ├── realtime_speech_wer.py
-│   ├── speaker_diarization.py
-│   ├── stt_service.py
-│   ├── whisper_transcribe.py
-│   ├── xml_to_text_trimmed.py
+│   ├── compare_models_wer.py
+│   └── xml_to_text_trimmed.py
+│
+├── diarization/
+│   ├── realtime_diarization.py
+│   ├── compute_der.py
+│   ├── predicted.rttm
+│   └── reference.rttm
 │
 ├── summarization/
 │   ├── summarizer.py
 │   ├── evaluate_summary.py
-│   ├── prompts.py
+│   └── prompts.py
 │
 ├── storage/
 │   ├── raw_audio/
 │   ├── processed_audio/
-│   ├── reference/
 │   ├── transcripts/
 │   ├── summaries/
+│   └── reference/
 │
-├── diarization/
-│   ├── compute_der.py
-│   ├── reference.rttm
-│   ├── predicted.rttm
+├── outputs/
+│   ├── meeting_log.json
+│   ├── meeting.md
+│   └── meeting.pdf
 │
-├── run_pipeline.py
-├── README.md
+├── utils/
+│   ├── logger.py
+│   ├── email.py
+│   └── export.py
+│
+├── logs/
+├── models/
+├── recordings/
+└── test_recording.wav
 ```
 
 ---
@@ -135,7 +133,7 @@ LIVE-MEETING-SUMMARIZER-APPLICATION/
 
 ### 1️⃣ Clone Repository
 
-```bash id="0gpnv7"
+```bash
 git clone https://github.com/SpringboardMentor050/Live-Meeting-Summarizer-Application.git
 cd Live-Meeting-Summarizer-Application
 ```
@@ -144,7 +142,7 @@ cd Live-Meeting-Summarizer-Application
 
 ### 2️⃣ Create Virtual Environment
 
-```bash id="2r4l8c"
+```bash
 python -m venv venv310
 venv310\Scripts\activate
 ```
@@ -153,169 +151,115 @@ venv310\Scripts\activate
 
 ### 3️⃣ Install Dependencies
 
-```bash id="2f8k9o"
+```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-### 4️⃣ Install FFmpeg (Required for Whisper)
+### 4️⃣ Setup Environment Variables
 
-Download: https://ffmpeg.org/download.html
-Add it to system PATH
-
----
-
-## 🧩 Model Installation & Setup
-
----
-
-### 🔹 Vosk Model
-
-Download from: https://alphacephei.com/vosk/models
-
-```id="m01d4p"
-vosk-model-en-us-0.22
-```
-
-Place inside:
-
-```id="5l3qzk"
-models/vosk-model-en-us-0.22/
+```bash
+set HF_TOKEN=your_huggingface_token
 ```
 
 ---
 
-### 🔹 Whisper Model
+## ▶️ Run the Application
 
-```bash id="9m8ywr"
-pip install openai-whisper
+```bash
+streamlit run app.py
+```
+
+Open in browser:
+
+```
+http://localhost:8501
 ```
 
 ---
 
-### 🔹 Pyannote (Diarization)
+## 🎮 How to Use
 
-```bash id="v1d1oh"
-pip install pyannote.audio torch
-```
+1. Click **Start Recording**
+2. Speak or play meeting audio
+3. View **Live Captions**
+4. Click **Stop Recording**
+5. System processes:
 
-```bash id="h3l9tx"
-set HF_TOKEN=your_token_here
-```
+   * Speech Recognition
+   * Speaker Diarization
+   * Summarization
+6. Outputs displayed:
 
----
-
-### 🔹 BART (Summarization)
-
-```bash id="2c2y12"
-pip install transformers
-```
-
----
-
-## ▶️ How to Run
-
-### Run Full Pipeline
-
-```bash id="g4yyos"
-python run_pipeline.py
-```
+   * Transcript
+   * Summary
+7. Export or Email results
 
 ---
 
-## 🧠 Models Used
+## 🔄 Pipeline Flow
 
-| Task               | Model                 |
-| ------------------ | --------------------- |
-| Speech Recognition | Vosk, Whisper         |
-| Diarization        | Pyannote              |
-| Summarization      | BART                  |
-| Evaluation         | WER, DER, ROUGE, BLEU |
-
----
-
-## 📊 Results
-
-### Speech Recognition
-
-| Model   | WER    |
-| ------- | ------ |
-| Vosk    | 0.7578 |
-| Whisper | 0.7109 |
-
-👉 Whisper performs better
-
----
-
-### Real-Time Output
-
-```id="3el8qz"
-hello everyone welcome to the meeting
-WER: 0.0
+```text
+Audio Input
+   ↓
+Audio Preprocessing
+   ↓
+Whisper (Speech Recognition)
+   ↓
+Speaker Diarization (Pyannote)
+   ↓
+Transcript Alignment
+   ↓
+Summarization (BART / GPT)
+   ↓
+UI Display + Export + Email
 ```
 
 ---
 
-### Diarization
+## 📤 Export Options
 
-* DER: **29.07%**
-
----
-
-### Summarization
-
-* ROUGE F1 ≈ 0.28
-* BLEU ≈ 0.007
+* 📄 Download PDF
+* 📝 Download Markdown
+* 📧 Send via Email
 
 ---
 
-## 🔗 Pipeline Integration
+## 📊 Evaluation Metrics
 
-1. Audio Input
-2. Preprocessing
-3. ASR (Vosk/Whisper)
-4. Diarization
-5. Alignment
-6. Summarization
-7. Evaluation
+* **WER (Word Error Rate)** → Transcription accuracy
+* **DER (Diarization Error Rate)** → Speaker accuracy
+* **ROUGE / BLEU** → Summary quality
 
 ---
 
-## 📁 Outputs
+## ⚠️ Limitations
 
-* whisper_output.txt
-* diarized_transcript.txt
-* final_summary.txt
-
----
-
-## ⚠️ Challenges
-
-* Multi-speaker overlap
-* Background noise
-* Long audio processing
+* Sensitive to background noise
+* Overlapping speech affects accuracy
+* Diarization not fully accurate
+* High computation for large models
 
 ---
 
-## 🚀 Future Improvements
+## 🔮 Future Improvements
 
-* Use Whisper Large
-* Improve diarization
-* Add noise reduction
-* Deploy as web app
+* Use Whisper Large model
+* Improve diarization accuracy
+* Add noise cancellation
+* Cloud deployment (AWS / Azure)
+* Multilingual support
 
 ---
 
-## 💡 Why This Project Stands Out
+## 🌍 Applications
 
-Unlike basic speech-to-text systems, this project integrates:
-
-✔ ASR + Speaker Diarization + NLP
-✔ Real-time + batch processing
-✔ Multiple evaluation metrics
-
-👉 Making it a **complete intelligent meeting assistant**
+* Corporate Meetings
+* Online Classes
+* Legal Documentation
+* Healthcare Discussions
+* Customer Support Analysis
 
 ---
 
@@ -329,3 +273,13 @@ Unlike basic speech-to-text systems, this project integrates:
 
 https://github.com/SpringboardMentor050/Live-Meeting-Summarizer-Application
 
+## ⭐ Acknowledgements
+
+* OpenAI Whisper
+* Pyannote Audio
+* HuggingFace Transformers
+* Streamlit
+
+---
+
+> ⚡ Transform meetings into structured insights instantly.
