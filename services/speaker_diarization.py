@@ -6,7 +6,7 @@ import torch
 import librosa
 from pyannote.audio import Pipeline
 
-HF_TOKEN = ""
+HF_TOKEN = "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"
 print("HF TOKEN:", HF_TOKEN)
 
 
