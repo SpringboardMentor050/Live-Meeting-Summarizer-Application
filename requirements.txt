@@ -1,0 +1,9 @@
+streamlit
+numpy
+scipy
+sounddevice
+jiwer
+openai-whisper
+torch
+pandas
+tqdm
