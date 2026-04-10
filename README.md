@@ -118,7 +118,8 @@ The application allows sending generated summaries via email using SMTP.
 
 ## 👩‍💻 Author
 
-**Jyothirlatha**
+**Jampina Nagalakshmi**
+Computer Science & Engineering
 
 ---
 
