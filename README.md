@@ -1,6 +1,6 @@
 # 🚀 AI Live Meeting Summarizer
 
-
+Project video : https://drive.google.com/file/d/1ikXXtJWwcYGVXmbjxJYqrzVsMEurKE33/view?usp=sharing 
 This project converts meeting audio into text, identifies speakers, and generates a summary.
 
 ## Features
@@ -35,7 +35,7 @@ summarizer.py – Text summarization
 utils.py – Helper functions  
 
 ## Author
-Jampina Nagalakshmi
+khushi kumari
 =======
 An AI-powered real-time meeting summarizer that:
 - Converts speech to text
@@ -321,7 +321,7 @@ Unlike basic speech-to-text systems, this project integrates:
 
 ## 👨‍💻 Author
 
-**Shivam Kumar**
+**khushi Kumari**
 
 ---
 
