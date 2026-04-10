@@ -7,6 +7,8 @@ from backend.diarization import diarize
 from utils.merger import merge_transcript_and_speakers
 from backend.summarizer import generate_summary
 
+from dotenv import load_dotenv
+load_dotenv()
 
 def run_pipeline(audio_file):
     result = {

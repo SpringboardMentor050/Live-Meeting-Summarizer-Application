@@ -2,11 +2,112 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import os
+import traceback
 import torch
 import librosa
 from pyannote.audio import Pipeline
 
 HF_TOKEN = os.getenv("HF_TOKEN")
+_pipeline = None
+
+
+def _get_diarization_pipeline():
+    global _pipeline
+
+    if not HF_TOKEN:
+        raise RuntimeError(
+            "HF_TOKEN is not set. Add your Hugging Face token to the environment to enable diarization."
+        )
+
+    if _pipeline is None:
+        print("\nLoading diarization model...")
+        model_candidates = [
+            "pyannote/speaker-diarization-3.1",
+            "pyannote/speaker-diarization@2.1",
+        ]
+
+        last_error = None
+        for model_name in model_candidates:
+            try:
+                print(f"Trying diarization model: {model_name}")
+                _pipeline = Pipeline.from_pretrained(
+                    model_name,
+                    use_auth_token=HF_TOKEN
+                )
+                print(f"Loaded diarization model: {model_name}")
+                break
+            except Exception as e:
+                last_error = e
+                print(f"Failed to load {model_name}: {e}")
+
+        if _pipeline is None:
+            raise RuntimeError(f"Unable to load diarization pipeline: {last_error}")
+
+    return _pipeline
+
+
+def _segment_value(segment, key, default=None):
+    if isinstance(segment, dict):
+        return segment.get(key, default)
+    return getattr(segment, key, default)
+
+
+def _normalize_whisper_segments(whisper_segments):
+    normalized = []
+
+    for segment in whisper_segments or []:
+        start = _segment_value(segment, "start")
+        end = _segment_value(segment, "end")
+        text = str(_segment_value(segment, "text", "") or "").strip()
+
+        try:
+            start = float(start)
+            end = float(end)
+        except (TypeError, ValueError):
+            continue
+
+        if not text or end <= start:
+            continue
+
+        normalized.append({
+            "start": start,
+            "end": end,
+            "text": text,
+        })
+
+    return normalized
+
+
+def _assign_speaker_label(start, end, diarization_turns, last_speaker=None):
+    best_speaker = None
+    best_overlap = 0.0
+
+    for turn, _, raw_speaker in diarization_turns:
+        overlap_start = max(start, turn.start)
+        overlap_end = min(end, turn.end)
+        overlap = max(0.0, overlap_end - overlap_start)
+
+        if overlap > best_overlap:
+            best_overlap = overlap
+            best_speaker = raw_speaker
+
+    if best_speaker is not None:
+        return best_speaker
+
+    midpoint = (start + end) / 2.0
+    closest_speaker = None
+    closest_distance = float("inf")
+
+    for turn, _, raw_speaker in diarization_turns:
+        if turn.start <= midpoint <= turn.end:
+            return raw_speaker
+
+        distance = min(abs(midpoint - turn.start), abs(midpoint - turn.end))
+        if distance < closest_distance:
+            closest_distance = distance
+            closest_speaker = raw_speaker
+
+    return closest_speaker or last_speaker or "UNKNOWN"
 
 
 def run_diarization(audio_file, whisper_segments):
@@ -18,46 +119,42 @@ def run_diarization(audio_file, whisper_segments):
     print(f"Audio duration: {len(waveform)/sr:.2f} seconds")
 
     audio = {
-        "waveform": torch.tensor(waveform).unsqueeze(0),
+        "waveform": torch.tensor(waveform, dtype=torch.float32).unsqueeze(0),
         "sample_rate": sr
     }
 
-    print("\nLoading diarization model...")
-
-    pipeline = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
-        use_auth_token=HF_TOKEN
-    )
+    pipeline = _get_diarization_pipeline()
 
     print("\nRunning diarization...")
 
     diarization = pipeline(audio)
+    diarization_turns = list(diarization.itertracks(yield_label=True))
+    normalized_segments = _normalize_whisper_segments(whisper_segments)
 
-    diarized_transcript = ""
+    if not normalized_segments:
+        raise RuntimeError("No valid Whisper segments available for speaker alignment.")
+
+    diarized_lines = []
+    speaker_map = {}
+    last_speaker = None
 
     print("\nAligning speakers with transcript...\n")
 
-    for segment in whisper_segments:
+    for segment in normalized_segments:
+        raw_speaker = _assign_speaker_label(
+            segment["start"],
+            segment["end"],
+            diarization_turns,
+            last_speaker=last_speaker,
+        )
+        last_speaker = raw_speaker
 
-        start = segment["start"]
-        end = segment["end"]
-        text = segment["text"]
+        if raw_speaker not in speaker_map:
+            speaker_map[raw_speaker] = f"SPEAKER_{len(speaker_map) + 1}"
 
-        speaker_label = "UNKNOWN"
-        best_overlap = 0
+        diarized_lines.append(f"{speaker_map[raw_speaker]}: {segment['text']}")
 
-        for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
-
-            overlap_start = max(start, turn.start)
-            overlap_end = min(end, turn.end)
-
-            overlap = max(0, overlap_end - overlap_start)
-
-            if overlap > best_overlap:
-                best_overlap = overlap
-                speaker_label = speaker
-
-        diarized_transcript += f"{speaker_label}: {text}\n"
+    diarized_transcript = "\n".join(diarized_lines).strip()
 
     os.makedirs("storage/transcripts", exist_ok=True)
 

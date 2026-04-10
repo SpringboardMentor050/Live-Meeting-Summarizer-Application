@@ -1,0 +1,506 @@
+#app.py
+
+import os
+import html
+import importlib
+import inspect
+import streamlit as st
+import numpy as np
+import tempfile
+import soundfile as sf
+import time
+import re
+import warnings 
+warnings.filterwarnings("ignore", category=UserWarning, module="soundfile")
+
+
+sd = None
+try:
+    sd = importlib.import_module("sounddevice")
+except ImportError:
+    sd = None
+
+# -----------------------------
+# CUSTOM MODULES
+# -----------------------------
+from backend.live_stt import transcribe_stream
+from backend.exporter import export_markdown, export_pdf
+from backend.email_sender import send_email
+from backend.logger import save_session
+# NOTE:
+# Import backend.pipeline lazily inside processing block.
+# This prevents the app from crashing at startup if diarization deps fail.
+
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
+st.set_page_config(page_title="AI Meeting Summarizer", layout="wide")
+
+st.markdown("""
+<style>
+.stApp { background: linear-gradient(135deg, #0f172a, #1e293b); color: #38bdf8; }
+h1 { text-align: center; color: white; animation: fadeIn 1s ease-in-out; }
+.stButton > button {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white; border-radius: 10px; padding: 10px 20px;
+    border: none; transition: 0.3s;
+}
+.stButton > button:hover { transform: scale(1.05); }
+.live-box {
+    background: black; color: #00ffcc; padding: 15px; border-radius: 12px;
+    font-family: monospace; box-shadow: 0 0 15px rgba(0,255,200,0.4);
+    max-height: 200px; overflow-y: auto;
+}
+.transcript-box, .summary-box { padding: 15px; border-radius: 10px; }
+.transcript-box { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); }
+.summary-box { background: rgba(56,189,248,0.1); border-left: 5px solid #38bdf8; }
+.glow-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+    margin: 25px 0;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------
+# SESSION STATE INIT
+# -----------------------------
+defaults = {
+    "recording": False,
+    "audio_data": [],
+    "live_text": "",
+    "final_result": None,
+    "stream": None,
+    "local_buffer_ref": [],
+    "full_live_text": "",
+    "processing_error": "",
+    "selected_device_name": None,
+    "last_live_text": "",
+    "processed_chunk_count": 0,
+    "live_pending_audio": [],
+    "last_caption_sample_count": 0,
+}
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
+
+# -----------------------------
+# AUDIO DEVICE SCAN
+# -----------------------------
+input_devices = {}
+if sd is not None:
+    try:
+        devices = sd.query_devices()
+        for i, dev in enumerate(devices):
+            if dev.get("max_input_channels", 0) > 0:
+                input_devices[f"{i}: {dev['name']}"] = i
+    except Exception as e:
+        st.error(f"Error scanning audio devices: {e}")
+
+# -----------------------------
+# HELPERS
+# -----------------------------
+def format_transcript(text: str) -> str:
+    parts = re.split(r"(SPEAKER_\d+:)", text)
+    formatted = []
+    for i in range(1, len(parts), 2):
+        speaker = parts[i]
+        sentence = parts[i + 1].strip() if i + 1 < len(parts) else ""
+        formatted.append(f"**{speaker}** {sentence}")
+    return "\n\n".join(formatted).strip() if formatted else text.strip()
+
+def render_transcript_html(text: str) -> str:
+    """
+    Render diarized transcript labels as visible speaker sections in the UI.
+    Supports common label styles like SPEAKER_1: and Speaker 1:.
+    """
+    pattern = re.compile(r"((?:SPEAKER_\d+|Speaker\s+\d+):)", re.IGNORECASE)
+    parts = pattern.split(text or "")
+
+    if len(parts) <= 1:
+        return html.escape((text or "").strip()).replace("\n", "<br>")
+
+    blocks = []
+    for i in range(1, len(parts), 2):
+        speaker = html.escape(parts[i].strip())
+        sentence = html.escape(parts[i + 1].strip() if i + 1 < len(parts) else "")
+        blocks.append(f"<p><strong>{speaker}</strong> {sentence}</p>")
+
+    return "".join(blocks)
+
+def extract_result_fields(result):
+    """
+    Handles different possible backend return formats:
+    - transcript / diarized / summary
+    - diarized_transcript / transcript / summary
+    """
+    if not isinstance(result, dict):
+        return str(result or "").strip(), ""
+
+    transcript = (
+        result.get("diarized_transcript")
+        or result.get("diarized")
+        or result.get("transcript")
+        or result.get("text")
+        or ""
+    )
+    if isinstance(transcript, dict):
+        transcript = (
+            transcript.get("text")
+            or transcript.get("transcript")
+            or transcript.get("diarized_transcript")
+            or ""
+        )
+    if isinstance(transcript, list):
+        transcript = "\n".join(str(item).strip() for item in transcript if str(item).strip())
+
+    summary = result.get("summary", "")
+    if isinstance(summary, dict):
+        summary = summary.get("text") or summary.get("summary") or ""
+
+    return str(transcript or "").strip(), str(summary or "").strip()
+
+def sanitize_summary(summary_text: str, transcript_text: str) -> str:
+    """
+    Avoid showing placeholder summaries when transcript extraction failed.
+    """
+    if not summary_text:
+        return ""
+
+    placeholder_markers = [
+        "i don't see a meeting transcript provided",
+        "please share the meeting transcript",
+        "once you provide the transcript",
+    ]
+    normalized_summary = summary_text.lower()
+    if not transcript_text or any(marker in normalized_summary for marker in placeholder_markers):
+        return ""
+
+    return summary_text.strip()
+
+def run_backend_pipeline(audio_path: str):
+    """
+    Lazy import to prevent app startup crash when backend ML deps are broken.
+    """
+    from backend.pipeline import run_pipeline
+
+    return run_pipeline(audio_path)
+
+
+def save_session_result(transcript_text: str, summary_text: str):
+    """
+    Support older/newer logger.save_session signatures.
+    """
+    try:
+        param_count = len(inspect.signature(save_session).parameters)
+    except Exception:
+        param_count = 2
+
+    if param_count >= 3:
+        return save_session("meeting", transcript_text, summary_text)
+    return save_session(transcript_text, summary_text)
+
+
+def send_summary_email(summary_text: str, recipient_email: str, attachment_path: str | None = None):
+    """
+    Support common email helper signatures without crashing the UI.
+    """
+    subject = "AI Meeting Summary"
+    body = summary_text or "Summary unavailable."
+
+    try:
+        param_count = len(inspect.signature(send_email).parameters)
+    except Exception:
+        param_count = 3
+
+    if param_count >= 4:
+        return send_email(recipient_email, subject, body, attachment_path=attachment_path)
+    if param_count == 3:
+        return send_email(subject, recipient_email, body)
+    return send_email(body, recipient_email, attachment_path=attachment_path)
+
+# -----------------------------
+# UI
+# -----------------------------
+st.markdown("<h1>🎤 AI Meeting Summarizer</h1>", unsafe_allow_html=True)
+st.caption("Smart Meeting Insights in Seconds")
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
+
+# Device selection
+if sd is not None and len(input_devices) > 0:
+    device_options = list(input_devices.keys())
+    saved_device_name = st.session_state.get("selected_device_name")
+    default_index = (
+        device_options.index(saved_device_name)
+        if saved_device_name in device_options
+        else 0
+    )
+
+    selected_device_name = st.selectbox(
+        "🎙️ Select your Microphone:",
+        options=device_options,
+        index=default_index,
+        key="selected_device_name_widget",
+        disabled=st.session_state.recording,
+        help="If your microphone isn't picking up audio, choose the correct input device."
+    )
+    st.session_state.selected_device_name = selected_device_name
+else:
+    selected_device_name = None
+    st.session_state.selected_device_name = None
+    st.warning("No input microphone detected, or sounddevice is unavailable.")
+
+status = st.empty()
+
+st.markdown("### 🎤 Live Captions")
+safe_live_text = html.escape(
+    st.session_state.full_live_text if st.session_state.full_live_text else "🎧 Listening..."
+)
+st.markdown(f"""
+<div class="live-box">
+{safe_live_text}
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
+
+# -----------------------------
+# CONTROLS
+# -----------------------------
+col1, col2 = st.columns(2)
+
+start_disabled = sd is None or len(input_devices) == 0
+
+with col1:
+    if st.button("🎤 Start Recording", disabled=start_disabled):
+        st.session_state.recording = True
+        st.session_state.local_buffer_ref = []
+        st.session_state.audio_data = []
+        st.session_state.live_text = ""
+        st.session_state.full_live_text = ""
+        st.session_state.last_live_text = ""
+        st.session_state.processed_chunk_count = 0
+        st.session_state.live_pending_audio = []
+        st.session_state.last_caption_sample_count = 0
+        st.session_state.final_result = None
+        st.session_state.processing_error = ""
+        st.session_state.stream = None
+
+    if sd is None:
+        st.warning("Recording is disabled: sounddevice module unavailable.")
+
+with col2:
+    if st.button("⏹ Stop Recording", disabled=not st.session_state.recording):
+        st.session_state.recording = False
+
+# -----------------------------
+# LIVE RECORDING LOOP
+# -----------------------------
+fs = 16000
+block_size = 8000
+
+if st.session_state.recording:
+    status.info("🎤 Recording...")
+
+    if st.session_state.stream is None:
+        local_buffer = []
+
+        def callback(indata, frames, time_info, status_flag):
+            # Keep callback lightweight and thread-safe enough for CPython list append
+            local_buffer.append(indata[:, 0].copy())
+
+        st.session_state.local_buffer_ref = local_buffer
+
+        try:
+            device_index = input_devices.get(st.session_state.selected_device_name) if selected_device_name else None
+
+            stream_kwargs = dict(
+                samplerate=fs,
+                channels=1,
+                dtype="float32",
+                blocksize=block_size,
+                callback=callback,
+            )
+            if device_index is not None:
+                stream_kwargs["device"] = device_index
+
+            st.session_state.stream = sd.InputStream(**stream_kwargs)
+            st.session_state.stream.start()
+        except Exception as e:
+            st.session_state.recording = False
+            st.session_state.stream = None
+            st.error(f"Could not start microphone stream: {e}")
+            st.stop()
+
+    time.sleep(0.7)
+
+    buffer_data = st.session_state.local_buffer_ref
+
+    if len(buffer_data) > 0:
+        st.session_state.audio_data = buffer_data.copy()
+        new_chunks = buffer_data[st.session_state.processed_chunk_count:]
+        if new_chunks:
+            st.session_state.live_pending_audio.extend(new_chunks)
+            st.session_state.processed_chunk_count = len(buffer_data)
+
+        try:
+            total_sample_count = sum(len(chunk) for chunk in buffer_data)
+
+            # Refresh captions from the recorded mic audio so far instead of
+            # merging separate chunk transcripts, which can drift or duplicate.
+            if total_sample_count - st.session_state.last_caption_sample_count >= fs * 2:
+                audio_buffer = np.concatenate(buffer_data).astype(np.float32)
+                text = transcribe_stream(audio_buffer)
+
+                if text:
+                    cleaned_text = re.sub(r"\s+", " ", text).strip()
+                    st.session_state.full_live_text = cleaned_text
+                    st.session_state.last_live_text = cleaned_text
+                    st.session_state.last_caption_sample_count = total_sample_count
+                    st.session_state.live_pending_audio = []
+
+        except Exception as e:
+            print("Live STT error:", e)
+
+    st.rerun()
+
+# -----------------------------
+# STOP RECORDING CLEANUP
+# -----------------------------
+if not st.session_state.recording and st.session_state.stream is not None:
+    try:
+        st.session_state.stream.stop()
+        st.session_state.stream.close()
+    except Exception:
+        pass
+    st.session_state.stream = None
+    st.session_state.audio_data = st.session_state.local_buffer_ref.copy()
+
+# -----------------------------
+# FINAL PROCESSING
+# -----------------------------
+if (
+    not st.session_state.recording
+    and len(st.session_state.audio_data) > 0
+    and st.session_state.final_result is None
+    and st.session_state.processing_error == ""
+):
+    status.warning("⚡ Processing your meeting...")
+
+    try:
+        audio = np.concatenate(st.session_state.audio_data)
+
+        # Normalize safely
+        max_val = np.max(np.abs(audio)) + 1e-6
+        audio = audio / max_val
+        audio = np.clip(audio, -1, 1)
+        audio = (audio * 32767).astype(np.int16)
+
+        fd, temp_audio_path = tempfile.mkstemp(suffix=".wav")
+        os.close(fd)
+        sf.write(temp_audio_path, audio, fs)
+
+        try:
+            with st.spinner("🤖 AI is analyzing your meeting..."):
+                result = run_backend_pipeline(temp_audio_path)
+        finally:
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+
+        st.session_state.final_result = result
+
+        transcript_text, summary_text = extract_result_fields(result)
+        if not transcript_text:
+            transcript_text = (st.session_state.full_live_text or st.session_state.last_live_text or "").strip()
+        summary_text = sanitize_summary(summary_text, transcript_text)
+        save_session_result(transcript_text, summary_text)
+
+        status.success("✅ Processing Completed")
+
+    except Exception as e:
+        st.session_state.processing_error = str(e)
+        status.error("❌ Processing failed")
+        st.error(f"Backend pipeline error: {e}")
+
+# -----------------------------
+# RESULTS
+# -----------------------------
+if st.session_state.final_result:
+    result = st.session_state.final_result
+    transcript_text, summary_text = extract_result_fields(result)
+    if not transcript_text:
+        transcript_text = (st.session_state.full_live_text or st.session_state.last_live_text or "").strip()
+    summary_text = sanitize_summary(summary_text, transcript_text)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("🧾 Transcript")
+        st.markdown(
+            f'<div class="transcript-box">{render_transcript_html(transcript_text)}</div>',
+            unsafe_allow_html=True
+        )
+
+    with col2:
+        st.subheader("🧠 Summary")
+        st.markdown(
+            f'<div class="summary-box">{html.escape(summary_text or "Summary unavailable because no valid transcript was produced.")}</div>',
+            unsafe_allow_html=True
+        )
+
+    st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
+
+    # -----------------------------
+    # EXPORT
+    # -----------------------------
+    st.subheader("📥 Export Options")
+    col3, col4 = st.columns(2)
+
+    with col3:
+        if st.button("📄 Download Markdown"):
+            path = export_markdown(transcript_text, summary_text)
+            with open(path, "rb") as f:
+                st.download_button(
+                    "⬇️ Download Markdown File",
+                    data=f,
+                    file_name="meeting.md",
+                    mime="text/markdown"
+                )
+            st.success(f"Saved at: {path}")
+
+    with col4:
+        if st.button("📑 Download PDF"):
+            path = export_pdf(transcript_text, summary_text)
+            if path and os.path.exists(path):
+                with open(path, "rb") as f:
+                    st.download_button(
+                        "⬇️ Download PDF File",
+                        data=f,
+                        file_name="meeting.pdf",
+                        mime="application/pdf"
+                    )
+                st.success(f"Saved at: {path}")
+            else:
+                st.error("❌ PDF generation failed")
+
+    st.markdown('<div class="glow-divider"></div>', unsafe_allow_html=True)
+
+    # -----------------------------
+    # EMAIL
+    # -----------------------------
+    st.subheader("📧 Send via Email")
+    email_input = st.text_input("Enter email address")
+
+    if st.button("Send Email"):
+        if email_input:
+            pdf_path = export_pdf(transcript_text, summary_text)
+            success = send_summary_email(summary_text, email_input, attachment_path=pdf_path)
+            if success:
+                st.success("✅ Email sent successfully with PDF!")
+            else:
+                st.error("❌ Failed to send email")
+        else:
+            st.warning("Please enter an email")
+
+elif st.session_state.processing_error:
+    st.error(f"Last processing error: {st.session_state.processing_error}")
