@@ -7,7 +7,7 @@ load_dotenv()
 
 def evaluate_asr_models():
     # 1. Paths
-    base_dir = r"f:\LiveMeetingAnalyzerProject"
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     audio_path = os.path.join(base_dir, "audio", "ES2002a_trimmed.wav")
     ground_truth_path = os.path.join(base_dir, "audio", "ES2002a_ground_truth.txt")
 

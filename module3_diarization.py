@@ -25,33 +25,44 @@ class DiarizationEngine:
         self.hf_token = hf_token or os.getenv("HF_TOKEN")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.pipeline = None
+        # self._load_pipeline()  # Removed: Loading lazily in perform_diarization
 
+    def _load_pipeline(self):
+        """Loads the pipeline only if needed."""
+        if self.pipeline:
+            return
+            
         try:
             # Load official pyannote pipeline 3.1
-            # Note: pyannote 3.1 uses 'token' instead of 'use_auth_token'
+            print(f"[Diarization] Loading Pyannote 3.1 pipeline (Device: {self.device})...")
             self.pipeline = Pipeline.from_pretrained(
                 "pyannote/speaker-diarization-3.1",
                 token=self.hf_token
             )
             if self.pipeline:
                 self.pipeline.to(self.device)
-                print("[Diarization] Pyannote 3.1 pipeline loaded successfully.")
+                print("[Diarization] Pipeline ready.")
         except Exception as e:
             print(f"[Diarization] Warning: Failed to load pyannote pipeline ({e}). Switching to energy-based segmenter.")
 
-    def perform_diarization(self, wav_path, num_speakers=None):
+    def perform_diarization(self, wav_path, num_speakers=None, fast_mode=False):
         """
         Detects speaker segments (start, end, label).
         Returns list of dicts: [{'start': 0.0, 'end': 1.0, 'speaker': 'SPEAKER_01'}]
         """
-        # --- Primary: Pyannote ---
-        if self.pipeline:
+        self._load_pipeline()
+        
+        # --- Primary: Pyannote (Skip if fast_mode is True) ---
+        if self.pipeline and not fast_mode:
             try:
                 # --- BUG FIX: Load audio manually to bypass 'AudioDecoder' error on Windows ---
                 print("[Diarization] Loading audio into memory...")
-                y, sr = librosa.load(wav_path, sr=16000)
+                y, sr = sf.read(wav_path)
+                if len(y.shape) > 1: # Convert to mono if needed
+                    y = y.mean(axis=1)
+                
                 # Convert to torch tensor and add channel dim (1, T)
-                waveform = torch.from_numpy(y).unsqueeze(0)
+                waveform = torch.from_numpy(y).float().unsqueeze(0)
                 
                 audio_in_memory = {"waveform": waveform, "sample_rate": sr}
 

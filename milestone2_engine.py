@@ -23,7 +23,9 @@ class MeetingAnalyzerEngine:
         self.diarizer = DiarizationEngine(hf_token=hf_token)
         self.summarizer = SummarizationEngine(api_key=groq_key)
         
-        self.vosk_model_path = r"f:\LiveMeetingAnalyzerProject\vosk-model-small-en-us-0.15"
+        # Resolve paths dynamically relative to the script directory
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.vosk_model_path = os.path.join(base_dir, "vosk-model-small-en-us-0.15")
         self.groq_key = groq_key or os.getenv("GROQ_API_KEY")
 
     def transcribe_with_whisper(self, audio_path):
@@ -159,7 +161,7 @@ class MeetingAnalyzerEngine:
         
         return all_words
 
-    def execute_pipeline(self, wav_path, num_speakers=None, template_name="standard", use_high_accuracy=True):
+    def execute_pipeline(self, wav_path, num_speakers=None, template_name="standard", use_high_accuracy=True, fast_mode=False):
         """
         Runs full Post-Meeting Processing:
         1. STT -> words with timestamps (using Whisper for high accuracy)
@@ -176,7 +178,7 @@ class MeetingAnalyzerEngine:
             words = self.extract_word_timestamps(wav_path)
         
         # 2. Diarization
-        segments = self.diarizer.perform_diarization(wav_path, num_speakers=num_speakers)
+        segments = self.diarizer.perform_diarization(wav_path, num_speakers=num_speakers, fast_mode=fast_mode)
         
         # 3. Merging & Syncing
         synced_data = self.diarizer.synchronize_with_stt(words, segments)

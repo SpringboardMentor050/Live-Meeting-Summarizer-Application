@@ -165,6 +165,7 @@ with st.sidebar:
     st.divider()
     st.subheader("🛠️ Accuracy Settings")
     use_high_acc = st.checkbox("High Accuracy (Whisper Large-v3)", value=True, help="Uses Groq Whisper instead of local Vosk for final reports. Recommended for mobile.")
+    fast_mode = st.checkbox("⚡ Fast Result Mode", value=False, help="Skips heavy diarization for near-instant summaries. Best for single-speaker tests.")
     num_speakers = st.number_input("Expected Number of Speakers", min_value=0, max_value=10, value=0, help="Help Pyannote distinguish voices. 0 = auto-detect.")
     num_speakers = None if num_speakers == 0 else int(num_speakers)
 
@@ -275,7 +276,7 @@ with main_tab1:
                         from milestone2_engine import MeetingAnalyzerEngine
                         engine = MeetingAnalyzerEngine(hf_token=hf_token, groq_key=groq_key)
                         
-                        results = engine.execute_pipeline(temp_path, num_speakers=num_speakers, use_high_accuracy=use_high_acc)
+                        results = engine.execute_pipeline(temp_path, num_speakers=num_speakers, use_high_accuracy=use_high_acc, fast_mode=fast_mode)
                         
                         st.write("Saving history...")
                         import history_manager as hm
@@ -315,7 +316,7 @@ with main_tab1:
     if not st.session_state.recording and st.session_state.fusion and not st.session_state.final_results:
         with st.status("🧠 Engineering Final Report...", expanded=True) as status:
             st.write("Diarization & High-Accuracy Sync...")
-            results = st.session_state.fusion.stop_session(num_speakers=num_speakers, use_high_accuracy=use_high_acc)
+            results = st.session_state.fusion.stop_session(num_speakers=num_speakers, use_high_accuracy=use_high_acc, fast_mode=fast_mode)
             st.write("Saving history...")
             hm.save_meeting(st.session_state.user, results['transcript_formatted'], results['summary'], results.get('raw_words', []))
             st.write("Finalizing...")
@@ -405,6 +406,13 @@ if st.session_state.recording and st.session_state.fusion:
         # Check if recording stopped during iteration
         if not st.session_state.recording:
             break
+        # Check for microphone errors
+        if st.session_state.fusion.error_msg:
+            st.error(f"❌ Microphone Error: {st.session_state.fusion.error_msg}")
+            st.warning("Please check if another application is using your microphone.")
+            st.session_state.recording = False
+            break
+            
         time.sleep(0.01)
     
     # If the generator finishes naturally

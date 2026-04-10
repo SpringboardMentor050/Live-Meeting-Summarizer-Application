@@ -12,6 +12,7 @@ import time
 import wave
 import threading
 import sounddevice as sd
+from concurrent.futures import ThreadPoolExecutor
 from vosk import Model, KaldiRecognizer
 from milestone2_engine import MeetingAnalyzerEngine
 
@@ -23,6 +24,13 @@ class IntegratedFusionEngine:
         self.sample_rate = sample_rate
         self.audio_queue = queue.Queue()
         self.recording = False
+        self.v_model = None
+        self.v_rec = None
+        
+    def _load_vosk(self):
+        if self.v_model:
+            return
+        from vosk import Model, KaldiRecognizer
         self.v_model = Model(self.post_engine.vosk_model_path)
         self.v_rec = KaldiRecognizer(self.v_model, self.sample_rate)
         self.v_rec.SetWords(True)
@@ -30,6 +38,7 @@ class IntegratedFusionEngine:
         # Buffers
         self.all_words = []
         self.audio_buffer = []
+        self.error_msg = None
         
     def start_session(self):
         """Starts the capture and live transcription thread."""
@@ -42,6 +51,8 @@ class IntegratedFusionEngine:
             except: pass
             
         # Reset recognizer for new session
+        self._load_vosk()
+        from vosk import KaldiRecognizer
         self.v_rec = KaldiRecognizer(self.v_model, self.sample_rate)
         self.v_rec.SetWords(True)
         
@@ -59,14 +70,19 @@ class IntegratedFusionEngine:
                 self.audio_queue.put(data_int16)
                 self.audio_buffer.append(data_int16)
 
-        with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='float32', callback=callback):
-            while self.recording:
-                time.sleep(0.1)
+        try:
+            with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='float32', callback=callback):
+                while self.recording:
+                    time.sleep(0.1)
+        except Exception as e:
+            self.recording = False
+            self.error_msg = str(e)
+            print(f"[Fusion] Audio Capture Error: {e}")
 
-    def stop_session(self, temp_wav_path="temp_recording.wav", num_speakers=None, use_high_accuracy=True):
+    def stop_session(self, temp_wav_path="temp_recording.wav", num_speakers=None, use_high_accuracy=True, fast_mode=False):
         """Stops recording and returns the results of diarization and summarization."""
         self.recording = False
-        print("[Fusion] Capture stopped. Processing engine...")
+        print("[Fusion] Capture stopped. Starting Parallel Post-Processing...")
         
         # 1. Clear the queue and finalize any remaining audio
         self._drain_queue()
@@ -74,19 +90,28 @@ class IntegratedFusionEngine:
         # 2. Save the full audio buffer to a WAV file
         self._save_audio_buffer(temp_wav_path)
         
-        # 3. HIGH ACCURACY PIPELINE
-        print("[Fusion] Starting Post-Processing...")
-        
-        # Determine transcription words
-        if use_high_accuracy:
-            print("[Fusion] Using Whisper for final transcript...")
-            final_words = self.post_engine.transcribe_with_whisper(temp_wav_path)
-        else:
-            print("[Fusion] Using live-captured words (Vosk)...")
-            final_words = self.all_words
-        
-        # Perform Diarization on the saved WAV
-        segments = self.post_engine.diarizer.perform_diarization(temp_wav_path, num_speakers=num_speakers)
+        # 3. PARALLEL PIPELINE: STT and Diarization
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Task A: Speech-to-Text
+            if use_high_accuracy:
+                print("[Fusion] Task A: Dispatching Whisper Transcription...")
+                stt_future = executor.submit(self.post_engine.transcribe_with_whisper, temp_wav_path)
+            else:
+                stt_future = None # Will use self.all_words
+
+            # Task B: Diarization
+            print("[Fusion] Task B: Dispatching Speaker Diarization...")
+            diar_future = executor.submit(self.post_engine.diarizer.perform_diarization, temp_wav_path, num_speakers=num_speakers, fast_mode=fast_mode)
+
+            # Wait for results
+            if stt_future:
+                final_words = stt_future.result()
+            else:
+                final_words = self.all_words
+                
+            segments = diar_future.result()
+
+        print("[Fusion] Parallel tasks complete. Syncing and Summarizing...")
         
         # Syncing
         synced_data = self.post_engine.diarizer.synchronize_with_stt(final_words, segments)
@@ -103,6 +128,7 @@ class IntegratedFusionEngine:
 
     def _drain_queue(self):
         """Finalizes any remaining audio chunks in the queue."""
+        self._load_vosk()
         while not self.audio_queue.empty():
             data = self.audio_queue.get()
             if self.v_rec.AcceptWaveform(data):
@@ -127,6 +153,7 @@ class IntegratedFusionEngine:
 
     def get_live_incremental(self):
         """Yields dictionary with type ('partial' or 'final') and text for UI."""
+        self._load_vosk()
         while self.recording or not self.audio_queue.empty():
             try:
                 data = self.audio_queue.get(timeout=0.1)

@@ -12,6 +12,8 @@ vosk-model-*/
 *.zip
 *.wav
 *.log
+*.pdf
+app_data.db
 
 # IDEs
 .vscode/
