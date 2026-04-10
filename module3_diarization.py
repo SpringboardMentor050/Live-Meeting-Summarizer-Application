@@ -41,24 +41,23 @@ class DiarizationEngine:
 
     def perform_diarization(self, wav_path, num_speakers=None):
         """
-        Detects speaker segments (start, end, label).   
+        Detects speaker segments (start, end, label).
         Returns list of dicts: [{'start': 0.0, 'end': 1.0, 'speaker': 'SPEAKER_01'}]
         """
         # --- Primary: Pyannote ---
         if self.pipeline:
             try:
-                # --- PRE-PROCESSING: Normalization ---
+                # --- BUG FIX: Load audio manually to bypass 'AudioDecoder' error on Windows ---
+                print("[Diarization] Loading audio into memory...")
                 y, sr = librosa.load(wav_path, sr=16000)
-                y = librosa.util.normalize(y) 
+                # Convert to torch tensor and add channel dim (1, T)
+                waveform = torch.from_numpy(y).unsqueeze(0)
                 
-                norm_wav = "temp_normalized_diarization.wav"
-                sf.write(norm_wav, y, sr)
+                audio_in_memory = {"waveform": waveform, "sample_rate": sr}
 
-                diarization = self.pipeline(norm_wav, num_speakers=num_speakers)
+                print("[Diarization] Processing with Pyannote 3.1...")
+                diarization = self.pipeline(audio_in_memory, num_speakers=num_speakers)
                 
-                try: os.remove(norm_wav)
-                except: pass
-
                 segments = []
                 for turn, _, speaker in diarization.itertracks(yield_label=True):
                     segments.append({
@@ -71,24 +70,24 @@ class DiarizationEngine:
                 print(f"[Diarization] Pyannote processing error: {e}. Using fallback...")
 
         # --- Fallback: Energy-based VAD ---
-        # If Pyannote fails, we detect voice activity and group segments.
         try:
-            print("[Diarization] Falling back to VAD...")
+            print("[Diarization] Optimizing VAD sensitivity for cleaner segments...")
             y, sr = librosa.load(wav_path, sr=16000)
-            # Adjust top_db for noise sensitivity. Lower is more sensitive. 35 is robust for voice.
-            intervals = librosa.effects.split(y, top_db=35)
+            # 40 top_db is a sweet spot for reducing False Alarms in moderately noisy audio
+            intervals = librosa.effects.split(y, top_db=40) 
             segments = []
             
-            # If user specified 1 speaker, DO NOT alternate.
             forced_single_speaker = (num_speakers == 1)
             
             for i, (start, end) in enumerate(intervals):
-                spk_idx = 1 if forced_single_speaker else (i % 2) + 1
-                segments.append({
-                    "start": start / sr,
-                    "end": end / sr,
-                    "speaker": f"SPEAKER_{spk_idx:02d}"
-                })
+                # Only keep segments longer than 0.3s to filter out clicks/noise
+                if (end - start) / sr > 0.3:
+                    spk_idx = 1 if forced_single_speaker else (i % 2) + 1
+                    segments.append({
+                        "start": start / sr,
+                        "end": end / sr,
+                        "speaker": f"SPEAKER_{spk_idx:02d}"
+                    })
             return segments
         except Exception as e:
             print(f"[Diarization] All methods failed: {e}")
@@ -105,6 +104,8 @@ class DiarizationEngine:
         diarized_transcript = []
         current_speaker = None
         current_text = []
+        turn_start = None
+        turn_end = None
 
         for w in words:
             mid = (w['start'] + w['end']) / 2
@@ -116,7 +117,7 @@ class DiarizationEngine:
                     speaker = s['speaker']
                     break
             
-            # 2. Closest segment match (if gap in diarization coverage)
+            # 2. Closest segment match
             if not speaker:
                 min_dist = float('inf')
                 for s in segments:
@@ -125,26 +126,42 @@ class DiarizationEngine:
                         min_dist = dist
                         speaker = s['speaker']
             
-            # 3. Default to "Unknown" if still nothing
             if not speaker: speaker = "Unknown"
 
             if speaker != current_speaker:
                 if current_text:
-                    diarized_transcript.append({"speaker": current_speaker, "text": " ".join(current_text)})
+                    diarized_transcript.append({
+                        "speaker": current_speaker, 
+                        "text": " ".join(current_text),
+                        "start": turn_start,
+                        "end": turn_end
+                    })
                 current_speaker = speaker
                 current_text = [w['word']]
+                turn_start = w['start']
+                turn_end = w['end']
             else:
                 current_text.append(w['word'])
+                turn_end = w['end']
 
         if current_text:
-            diarized_transcript.append({"speaker": current_speaker, "text": " ".join(current_text)})
+            diarized_transcript.append({
+                "speaker": current_speaker, 
+                "text": " ".join(current_text),
+                "start": turn_start,
+                "end": turn_end
+            })
 
         return diarized_transcript
 
     def format_output(self, merged_data):
-        """Formats transcript into readable speaker-tagged lines."""
+        """Formats transcript into readable speaker-tagged lines with timestamps."""
         lines = []
         for turn in merged_data:
             spk = turn['speaker'].replace("SPEAKER_", "Speaker ")
-            lines.append(f"[{spk}]: {turn['text']}")
+            start_m, start_s = divmod(turn['start'], 60)
+            end_m, end_s = divmod(turn['end'], 60)
+            
+            timestamp = f"[{int(start_m):02d}:{int(start_s):02d} - {int(end_m):02d}:{int(end_s):02d}]"
+            lines.append(f"{timestamp} [{spk}]: {turn['text']}")
         return "\n".join(lines)

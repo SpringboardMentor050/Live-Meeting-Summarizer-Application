@@ -14,8 +14,8 @@ load_dotenv()
 
 PROMPT_TEMPLATES = {
     "standard": {
-        "system": "You are a professional meeting assistant. Create a summary of the transcript with speakers identified and highlighted key decisions and action items.",
-        "user_template": "Analyze the following transcript and provide an executive summary that highlights: Key Discussion Points, Consensus & Decisions, and Action Items. \n\nTranscript:\n{transcript}"
+        "system": "You are a highly detailed meeting scribe. Your goal is to capture the full essence of the conversation, including participant introductions, icebreakers, and every specific detail mentioned, no matter how small.",
+        "user_template": "Provide a comprehensive and detailed narrative summary of the following meeting. Ensure you mention every participant by name (e.g., Laura, David, Andrew, Craig), their roles, and any specific activities or personal details they shared (like favorite animals or hobbies). Do not skip the opening introductions.\n\nTranscript:\n{transcript}"
     },
     "technical": {
         "system": "You are a technical meeting architect. Capture architectural decisions, technical debt, and next engineering steps.",

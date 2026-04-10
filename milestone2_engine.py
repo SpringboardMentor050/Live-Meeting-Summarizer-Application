@@ -226,6 +226,13 @@ if __name__ == "__main__":
         print(f"\n[Engine] Starting analysis on: {AUDIO_FILE}\n")
         engine = MeetingAnalyzerEngine()
         res = engine.execute_pipeline(AUDIO_FILE, num_speakers=args.num_speakers)
+        
+        print("\n" + "="*50)
+        print("📁 DIARIZED TRANSCRIPT (Module 3 Output)")
+        print("="*50)
+        print(res['transcript_formatted'])
+        print("="*50 + "\n")
+        
         engine.save_results(res, os.path.join(BASE, args.out))
     else:
         print(f"[Engine] Audio file missing: {AUDIO_FILE}")
