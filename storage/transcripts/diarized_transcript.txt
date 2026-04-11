@@ -1,10 +1,10 @@
-SPEAKER_1: problems of peace were every bit as convoluted as the problems of war.
-SPEAKER_1: And to my father in 1946, the world must have looked hopeful but immensely complicated.
-SPEAKER_1: And yet I wonder what my father would say about the world as we see it today.
-SPEAKER_1: We are wrestling with climate change, pandemics, terrorism, energy crisis, social inequities,
-SPEAKER_1: the name just a few and because of their trans border impact these issues too now fall within
-SPEAKER_1: the ambit of diplomacy, of international affairs, of international law and what would my father have
-SPEAKER_1: made of the impact of technology. In many cowboy movies the appearance of the hero or villain
-SPEAKER_1: is often preceded by his shadow. We now have a new cowboy in town, heralded by a
-SPEAKER_1: lengthening shadow. The shadow of the metaverse. Entrepreneurs are buying up
-SPEAKER_1: real estate on it.
+SPEAKER_1: In the metaverse, we can live not just a virtual second life, but also a parallel life where
+SPEAKER_1: the virtual intersects with reality and the boundaries between the two grow more and more
+SPEAKER_1: blurred.
+SPEAKER_2: In many ways, it may actually enhance the effectiveness of diplomacy.
+SPEAKER_1: virtual face-to-face negotiations may become as effective as in-person ones.
+SPEAKER_1: Global summits and indeed side conversations where you can interact
+SPEAKER_1: virtually where you can smell the coffee almost can lead to both quicker
+SPEAKER_1: responses and actually make a dent in climate change. On the other hand the
+SPEAKER_1: metaverse is likely to turn out to be the new Wild West. What laws will
+SPEAKER_1: govern it. Who will have jurisdiction and over what? Who will own
