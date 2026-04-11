@@ -1,5 +1,8 @@
 #  Live Meeting Summarizer Engine
 
+## 🎥 Live Demo
+Watch the application in action: [live_demo.mp4](./live_demo.mp4)
+
 An end-to-end, real-time meeting intelligence platform. This application captures live audio, transcribes it using offline STT, diarizes speakers, and generates structured AI summaries—all delivered through a  Streamlit dashboard with a robust SQLite backend.
 
 ##  Key Features
