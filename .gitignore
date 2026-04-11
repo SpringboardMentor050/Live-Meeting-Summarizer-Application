@@ -1,0 +1,5 @@
+diarization_env/
+__pycache__/
+.env
+outputs/
+*.wav
